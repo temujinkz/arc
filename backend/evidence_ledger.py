@@ -145,6 +145,7 @@ def export_report(run) -> dict:
     ledger = build_ledger(run)
     return {"schema": "arc.evidence-report.v1", "exported_at": datetime.now(timezone.utc).isoformat(),
             **ledger, "evidence": run.scratchpad.raw_evidence,
+            "persona_readings": [event for event in run.events if event["type"] == "judgment.complete"],
             "operator_decisions": run.scratchpad.human_decisions}
 
 
@@ -177,6 +178,16 @@ def report_markdown(run) -> str:
     for section in graph.get("portrait", []):
         lines.extend([f"## Interpretation: {quote(section['title'])}", "", quote(section["analysis"]),
                       f"Limitations: {quote(section['limitations'])}", f"Evidence IDs: {quote(section['evidence_ids'])}", ""])
+    for event in run.events:
+        if event["type"] != "judgment.complete":
+            continue
+        lines.extend(["## Council interpretation", "", f"Saved at: {event['timestamp']}",
+                      f"Evidence snapshot: {quote(event['snapshot'])}", ""])
+        for take in event["reading"]["takes"]:
+            lines.extend([f"### {quote(take['persona_id'])}", "", quote(take['headline']), quote(take['verdict']),
+                          f"Upside: {quote(take['upside'])}", f"Tension: {quote(take['tension'])}",
+                          f"Question: {quote(take['question'])}", f"Limitations: {quote(take['limitations'])}",
+                          f"Evidence IDs: {quote(take['evidence_ids'])}", ""])
     lines.extend(["## Source outcomes", ""])
     for group in report["source_activity"]:
         lines.append(f"- {quote(group['tool'])}: {group['attempts']} attempts; {group['captured']} captured; {group['failed']} failed; {group['unfinished']} unfinished.")

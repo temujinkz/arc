@@ -29,6 +29,7 @@ export function useInvestigation() {
   const pendingChat = useRef<{ sessionId: string; text: string; requestId: string; offset: number } | null>(null);
   const pendingCase = useRef<{ target: string; requestId: string } | null>(null);
   const pendingSource = useRef<{ sessionId: string; signature: string; requestId: string; offset: number } | null>(null);
+  const pendingJudgment = useRef<{ sessionId: string; signature: string; requestId: string; offset: number } | null>(null);
   const lastEventId = useRef(0);
 
   const refreshHistory = useCallback(async () => {
@@ -58,9 +59,9 @@ export function useInvestigation() {
         if (id && id <= lastEventId.current) return;
         if (id) lastEventId.current = id;
         setState((s) => applyEvent(s, event));
-        if (["case.ready", "source.complete", "source.failed", "source.cancelled", "investigation.complete", "investigation.failed", "investigation.cancelled", "conversation.complete", "conversation.failed", "conversation.cancelled"].includes(event.type)) {
+        if (["case.ready", "source.complete", "source.failed", "source.cancelled", "investigation.complete", "investigation.failed", "investigation.cancelled", "conversation.complete", "conversation.failed", "conversation.cancelled", "judgment.complete", "judgment.failed", "judgment.cancelled"].includes(event.type)) {
           active.current = false;
-        } else if (["investigation.started", "conversation.started", "source.started"].includes(event.type)) active.current = true;
+        } else if (["investigation.started", "conversation.started", "source.started", "judgment.started"].includes(event.type)) active.current = true;
       } catch { setState((s) => ({ ...s, error: "An unreadable stream event was received." })); }
     };
     source.onerror = () => {
@@ -181,5 +182,25 @@ export function useInvestigation() {
       setState((s) => ({ ...s, status: "failed", phase: "source", error: String(error) })); return false;
     }
   };
-  return { state, start, send, answer, cancel, evidence, history, historyError, refreshHistory, open, newInvestigation, createCase, collectSource };
+  const judge = async (personaIds: string[]) => {
+    if (!state.sessionId || active.current || !personaIds.length) return false;
+    active.current = true;
+    const signature = JSON.stringify(personaIds);
+    const previous = pendingJudgment.current;
+    const attempt = previous?.sessionId === state.sessionId && previous.signature === signature ? previous
+      : { sessionId: state.sessionId, signature, requestId: crypto.randomUUID(), offset: lastEventId.current };
+    pendingJudgment.current = attempt;
+    setState((s) => ({ ...s, status: "starting", phase: "judgment", error: "" }));
+    try {
+      await request(`/api/investigate/${encodeURIComponent(state.sessionId)}/judgments`, {
+        persona_ids: personaIds, request_id: attempt.requestId, authorize_model: true,
+      });
+      pendingJudgment.current = null;
+      connect(state.sessionId, attempt.offset); void refreshHistory(); return true;
+    } catch (error) {
+      active.current = false;
+      setState((s) => ({ ...s, status: "failed", error: String(error) })); return false;
+    }
+  };
+  return { state, start, send, answer, cancel, evidence, history, historyError, refreshHistory, open, newInvestigation, createCase, collectSource, judge };
 }

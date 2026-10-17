@@ -48,6 +48,8 @@ self-reported claims are unverified. Keep ambiguous identities separate; include
 exactly one central Person for the intended target and omit unresolved lookalikes.
 Use human_decisions to resolve which identity the user meant. Those decisions are
 operator context, not independent evidence that any profile claim is true.
+Never put a human_decisions request_id in evidence_ids. Those IDs are context only.
+If an item has no captured source evidence, omit it instead of citing a human answer.
 Use DomainPillars only when supported, with Artifact, Claim and EvidenceNode detail.
 Do not force 2-4 pillars when evidence is thin. Forks are not proof of original work,
 but do not discard meaningful contributions merely because a repository is a fork.

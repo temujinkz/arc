@@ -20,6 +20,7 @@ from backend.osint_tools import (
     inspect_domain_theharvester, search_username_maigret, search_username_sherlock,
 )
 from backend.domain_sources import inspect_domain_archive, inspect_domain_dns
+from backend.source_urls import canonical_linkedin_profile_url
 
 mcp = FastMCP("ARC-Unified-OSINT-Server", mask_error_details=True)
 github_requests = asyncio.Lock()
@@ -85,12 +86,10 @@ def require_key(name: str) -> str:
 
 
 def linkedin_profile_url(value: str) -> str:
-    url = urlsplit(value)
-    if (url.scheme != "https" or url.hostname not in {"linkedin.com", "www.linkedin.com"}
-            or url.username or url.password or url.port not in {None, 443}
-            or not re.fullmatch(r"/in/[^/]+/?", url.path)):
-        raise ToolError("Provide an https://www.linkedin.com/in/handle profile URL.")
-    return f"https://www.linkedin.com{url.path.rstrip('/')}"
+    try:
+        return canonical_linkedin_profile_url(value)
+    except ValueError as exc:
+        raise ToolError(str(exc)) from None
 
 
 @mcp.tool()

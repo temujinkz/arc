@@ -19,6 +19,11 @@ export type GraphNode = {
 export type GraphLink = { source: string; target: string; relationship: string; reason?: string };
 export type GraphData = { nodes: GraphNode[]; links: GraphLink[] };
 export type PortraitSection = { section: string; title: string; analysis: string; evidence_ids: string[]; limitations: string };
+export type PersonaTake = {
+  persona_id: string; stance: "impressed" | "intrigued" | "skeptical" | "withholding";
+  headline: string; verdict: string; upside: string; tension: string;
+  question: string; limitations: string; evidence_ids: string[];
+};
 export type GraphPlan = {
   nodes: (Omit<GraphNode, "id"> & { node_id: string })[];
   edges: { source_id: string; target_id: string; relationship: string; reason: string }[];
@@ -55,6 +60,9 @@ export type ArcEvent = {
   summary?: string;
   cost_usd?: number | null;
   mode?: "research" | "sources";
+  persona_ids?: string[];
+  snapshot?: string;
+  reading?: { takes: PersonaTake[] };
   cache_read_input_tokens?: number;
   cache_creation_input_tokens?: number;
 };
@@ -64,7 +72,7 @@ export type InvestigationState = {
   target: string;
   model: string;
   status: Status;
-  phase: "research" | "conversation" | "source";
+  phase: "research" | "conversation" | "source" | "judgment";
   collectionMode: "research" | "sources";
   connection: "connected" | "reconnecting";
   error: string;
@@ -95,6 +103,14 @@ export function applyEvent(state: InvestigationState, event: ArcEvent): Investig
   }
   const next = { ...state, logs };
   switch (event.type) {
+    case "judgment.started":
+      return { ...next, status: "running", phase: "judgment", error: "" };
+    case "judgment.complete":
+      return { ...next, status: "complete", phase: "judgment" };
+    case "judgment.failed":
+    case "judgment.cancelled":
+      return { ...next, status: event.type === "judgment.cancelled" ? "cancelled" : "failed", phase: "judgment",
+        error: event.error || event.text || "The council could not finish this reading." };
     case "case.ready":
       return { ...next, status: "complete", collectionMode: "sources" };
     case "source.started":
