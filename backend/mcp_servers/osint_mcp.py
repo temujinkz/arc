@@ -1,6 +1,14 @@
 """ARC's public-source OSINT tools, served over Streamable HTTP."""
 
 import asyncio
+import sys
+from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from backend.source_cache import SourceCache, CacheBlocked, verified_refresh_id
+from backend.storage import database_path
 import json
 import logging
 import os
@@ -11,15 +19,16 @@ from urllib.parse import urlsplit
 
 import httpx
 from apify_client import ApifyClientAsync
-from exa_py import AsyncExa
 from ddgs import DDGS
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from fastmcp.server.dependencies import get_http_headers
 
 from backend.osint_tools import (
     inspect_domain_theharvester, search_username_maigret, search_username_sherlock,
 )
 from backend.domain_sources import inspect_domain_archive, inspect_domain_dns
+from backend.you_search import search_web_you
 
 mcp = FastMCP("ARC-Unified-OSINT-Server", mask_error_details=True)
 github_requests = asyncio.Lock()
@@ -30,6 +39,7 @@ mcp.tool()(search_username_maigret)
 mcp.tool()(inspect_domain_theharvester)
 mcp.tool()(inspect_domain_dns)
 mcp.tool()(inspect_domain_archive)
+mcp.tool()(search_web_you)
 
 
 @mcp.tool()
@@ -93,50 +103,6 @@ def linkedin_profile_url(value: str) -> str:
     return f"https://www.linkedin.com{url.path.rstrip('/')}"
 
 
-@mcp.tool()
-async def search_identity_exa(query: str) -> list[dict]:
-    """Search public web sources for profiles, websites and professional artifacts.
-
-    Returns source URLs and relevant page highlights as snippets for Claude to
-    assess. Results are leads, not verified identities. Express source preferences
-    and recency in the query; no category or domain restrictions are imposed.
-    """
-    if not query.strip() or len(query) > 1000:
-        raise ToolError("Provide a nonblank query of at most 1,000 characters.")
-    exa = AsyncExa(api_key=require_key("EXA_API_KEY"))
-    try:
-        async with exa.client:
-            response = await exa.search(
-                query.strip(), type="auto", contents={"highlights": True},
-            )
-        return [
-            {"title": r.title, "url": r.url,
-             "snippet": "\n".join(r.highlights or []),
-             "published_at": r.published_date}
-            for r in response.results
-        ]
-    except (TimeoutError, httpx.TimeoutException):
-        raise ToolError("Exa search timed out; billing outcome is unknown. Do not automatically retry.") from None
-    except (httpx.HTTPStatusError, ValueError) as exc:
-        # exa-py 2.25 reports API errors as ValueError, including the response body.
-        # Extract only the status; never forward that body or credentials to Claude.
-        match = re.match(r"Request failed with status code (\d{3}):", str(exc))
-        status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else (
-            int(match[1]) if match else None
-        )
-        if status in {401, 403}:
-            raise ToolError("Exa rejected the API key or its permissions. Check EXA_API_KEY.") from None
-        if status == 402:
-            raise ToolError("Exa credits or API-key budget exhausted. Do not retry.") from None
-        if status == 429:
-            raise ToolError("Exa rate limit reached. Stop requests and check the account limit before retrying.") from None
-        if status is not None:
-            raise ToolError(f"Exa search failed with HTTP {status}.") from None
-        raise ToolError("Exa rejected the search request or returned an invalid response.") from None
-    except Exception:
-        raise ToolError("Exa search failed; check credentials, quota and availability.") from None
-
-
 async def run_apify(actor: str, run_input: dict, limit: int) -> list[dict]:
     try:
         charge_limit = Decimal(require_key("APIFY_MAX_TOTAL_CHARGE_USD"))
@@ -144,7 +110,21 @@ async def run_apify(actor: str, run_input: dict, limit: int) -> list[dict]:
             raise ValueError
     except (InvalidOperation, ValueError):
         raise ToolError("APIFY_MAX_TOTAL_CHARGE_USD must be a positive finite amount.") from None
-    client = ApifyClientAsync(require_key("APIFY_API_TOKEN"))
+    if os.getenv("ARC_RESEARCH_OFFLINE") == "1":
+        raise ToolError("Offline mode forbids Apify calls.")
+    token = require_key("APIFY_API_TOKEN")
+    try:
+        refresh_id = verified_refresh_id(get_http_headers(), token)
+    except ValueError:
+        raise ToolError("Invalid application refresh identity.") from None
+    operations = SourceCache(database_path())
+    try:
+        operation_id = operations.begin_operation("apify", actor, {"input": run_input, "limit": limit},
+                                                   refresh_id)
+    except CacheBlocked as exc:
+        operations.close()
+        raise ToolError(str(exc)) from None
+    client = ApifyClientAsync(token)
     run_id = None
     try:
         # Both configured actors currently use pay-per-event pricing. Keep the
@@ -157,9 +137,12 @@ async def run_apify(actor: str, run_input: dict, limit: int) -> list[dict]:
             max_items=limit, max_total_charge_usd=charge_limit,
         )
         run_id = started.id
+        operations.record_operation(operation_id, provider_run_id=run_id, status="RUNNING")
         logger.info(json.dumps({"event": "apify.run_started", "run_id": run_id, "actor": actor}))
         run = await client.run(run_id).wait_for_finish()
         if run is not None:
+            operations.record_operation(operation_id, provider_run_id=run_id, status=str(run.status),
+                                        usage_usd=float(run.usage_total_usd) if run.usage_total_usd is not None else None)
             logger.info(json.dumps({"event": "apify.run_finished", "run_id": run_id,
                 "status": run.status, "usage_total_usd": run.usage_total_usd,
                 "charged_event_counts": run.charged_event_counts}))
@@ -176,6 +159,7 @@ async def run_apify(actor: str, run_input: dict, limit: int) -> list[dict]:
         detail = f" Check existing run {run_id}." if run_id else " Start outcome may be unknown."
         raise ToolError(f"Apify request failed.{detail} Do not automatically rerun the actor.") from None
     finally:
+        operations.close()
         await client.http_client.aclose()
 
 

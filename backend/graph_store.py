@@ -10,14 +10,14 @@ from backend.graph_models import AgentConstructedGraph
 from backend.scratchpad import InvestigationScratchpad
 
 
-async def write_graph(tx, scratchpad: InvestigationScratchpad, graph: AgentConstructedGraph, model: str):
+async def write_graph(tx, scratchpad: InvestigationScratchpad, graph: AgentConstructedGraph, model: str, evidence_manifest=None):
     record = await tx.run(
         "MERGE (run:ARCInvestigation {session_id: $session_id}) "
         "SET run.evidence_json = $evidence, run.human_decisions_json = $human_decisions, "
         "run.summary = $summary, run.model = $model, "
-        "run.graph_json = $graph_json, "
+        "run.graph_json = $graph_json, run.withdrawn = false, run.withdrawal_reason = null, run.withdrawn_at = null, "
         "run.archetype = $archetype, run.score = $score, run.committed_at = datetime()",
-        session_id=scratchpad.session_id, evidence=json.dumps(scratchpad.architect_evidence()),
+        session_id=scratchpad.session_id, evidence=json.dumps(evidence_manifest if evidence_manifest is not None else scratchpad.architect_evidence()),
         graph_json=graph.model_dump_json(),
         human_decisions=json.dumps(scratchpad.human_decisions),
         summary=graph.summary, model=model, archetype=graph.detected_archetype,
@@ -51,13 +51,14 @@ async def write_graph(tx, scratchpad: InvestigationScratchpad, graph: AgentConst
             "MATCH (a:ARCNode {session_id: $session_id, node_id: row.source_id}), "
             "(b:ARCNode {session_id: $session_id, node_id: row.target_id}) "
             f"MERGE (a)-[r:{relationship}]->(b) "
-            "SET r.reason = row.reason, r.evidence_ids = row.evidence_ids",
+            "SET r.reason = row.reason, r.evidence_ids = row.evidence_ids, "
+            "r.span_ids = row.span_ids, r.evidence_state = row.evidence_state",
             rows=rows, session_id=scratchpad.session_id,
         )
         await record.consume()
 
 
-async def commit_graph(scratchpad, graph, model):
+async def commit_graph(scratchpad, graph, model, *, evidence_manifest=None):
     async with AsyncGraphDatabase.driver(
         os.environ["NEO4J_URI"], auth=(
             os.getenv("NEO4J_USERNAME", "").strip() or os.environ["NEO4J_USER"].strip(),
@@ -65,4 +66,4 @@ async def commit_graph(scratchpad, graph, model):
         ),
     ) as driver:
         async with driver.session(database=os.getenv("NEO4J_DATABASE", "neo4j")) as session:
-            await session.execute_write(write_graph, scratchpad, graph, model)
+            await session.execute_write(write_graph, scratchpad, graph, model, evidence_manifest)

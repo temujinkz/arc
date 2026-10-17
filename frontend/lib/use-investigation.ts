@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { applyEvent, initialState, type ArcEvent } from "./investigation";
+import { applyEvent, initialState, type ArcEvent, type EvidenceSpanView } from "./investigation";
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 const STORAGE_KEY = "arc.current-investigation";
@@ -22,10 +22,11 @@ export function useInvestigation() {
   const [state, setState] = useState(initialState);
   const [history, setHistory] = useState<InvestigationSummary[]>([]);
   const [historyError, setHistoryError] = useState("");
+  const [cachedProfile, setCachedProfile] = useState<{session_id: string; target: string} | null>(null);
   const stream = useRef<EventSource | null>(null);
   const active = useRef(false);
   const mounted = useRef(false);
-  const pendingStart = useRef<{ target: string; refreshSources: boolean; requestId: string } | null>(null);
+  const pendingStart = useRef<{ target: string; refreshSources: boolean; requestId: string; cachedSource?: string } | null>(null);
   const pendingChat = useRef<{ sessionId: string; text: string; requestId: string; offset: number } | null>(null);
   const pendingCase = useRef<{ target: string; requestId: string } | null>(null);
   const pendingSource = useRef<{ sessionId: string; signature: string; requestId: string; offset: number } | null>(null);
@@ -79,6 +80,7 @@ export function useInvestigation() {
     queueMicrotask(() => {
       if (!mounted.current) return;
       void refreshHistory();
+      void request("/api/research/cached-profile").then(data => { if (mounted.current) setCachedProfile(data.profile); }).catch(() => {});
       if (saved) { active.current = true; setState({ ...initialState, sessionId: saved, status: "running" }); connect(saved); }
     });
     return () => { mounted.current = false; stream.current?.close(); };
@@ -97,15 +99,15 @@ export function useInvestigation() {
     sessionStorage.removeItem(STORAGE_KEY); setState(initialState); void refreshHistory();
   };
 
-  const start = async (target: string, refreshSources = false) => {
+  const start = async (target: string, refreshSources = false, cachedSource?: string) => {
     target = target.trim();
     if (!target || active.current) return false;
     active.current = true; stream.current?.close();
-    const attempt = pendingStart.current?.target === target && pendingStart.current.refreshSources === refreshSources ? pendingStart.current : { target, refreshSources, requestId: crypto.randomUUID() };
+    const attempt = pendingStart.current?.target === target && pendingStart.current.refreshSources === refreshSources && pendingStart.current.cachedSource === cachedSource ? pendingStart.current : { target, refreshSources, cachedSource, requestId: crypto.randomUUID() };
     pendingStart.current = attempt;
     setState({ ...initialState, target, status: "starting" });
     try {
-      const result = await request("/api/investigations", { target, request_id: attempt.requestId, refresh_sources: refreshSources });
+      const result = await request("/api/investigations", { target, request_id: attempt.requestId, refresh_sources: refreshSources, cached_source_session_id: cachedSource });
       sessionStorage.setItem(STORAGE_KEY, result.session_id); pendingStart.current = null;
       if (!mounted.current) return true;
       setState((s) => ({ ...s, sessionId: result.session_id, status: "running" }));
@@ -143,6 +145,7 @@ export function useInvestigation() {
     catch (error) { setState((s) => ({ ...s, error: String(error) })); }
   };
   const evidence = (id: string) => request(`/api/investigate/${encodeURIComponent(state.sessionId)}/evidence/${encodeURIComponent(id)}`);
+  const span = (id: string): Promise<EvidenceSpanView> => request(`/api/investigate/${encodeURIComponent(state.sessionId)}/spans/${encodeURIComponent(id)}`);
   const createCase = async (target: string) => {
     target = target.trim();
     if (!target || active.current) return false;
@@ -181,5 +184,5 @@ export function useInvestigation() {
       setState((s) => ({ ...s, status: "failed", phase: "source", error: String(error) })); return false;
     }
   };
-  return { state, start, send, answer, cancel, evidence, history, historyError, refreshHistory, open, newInvestigation, createCase, collectSource };
+  return { state, start, send, answer, cancel, evidence, span, cachedProfile, history, historyError, refreshHistory, open, newInvestigation, createCase, collectSource };
 }

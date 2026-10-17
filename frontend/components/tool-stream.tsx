@@ -5,6 +5,7 @@ import { Terminal, Check, AlertTriangle, LoaderCircle, Pause, ChevronRight, Arro
 import type { ArcEvent, InvestigationState } from "@/lib/investigation";
 import { activityLabel, provider, toolLabel, toolResults } from "@/lib/presentation";
 import { AgentResponse } from "./agent-response";
+import { ResearchProgress } from "./research-progress";
 import { HumanReview } from "./review-panel";
 
 function ToolRow({ event, result, state, onEvidence }: {
@@ -56,6 +57,8 @@ export function ToolStream({ state, visible, onEvidence, answer }: { state: Inve
   const paused = state.prompts.length > 0 || state.connection === "reconnecting";
   const results = useMemo(() => toolResults(logs), [logs]);
   const calls = logs.filter((event) => event.type === "tool.started");
+  const failures = logs.filter((event) => event.type === "investigation.failed");
+  const latestFailure = failures.at(-1);
   const start = logs.find((event) => event.type === "investigation.started")?.timestamp;
   const end = [...logs].reverse().find((event) => ["investigation.complete", "investigation.failed", "investigation.cancelled"].includes(event.type))?.timestamp;
   const elapsed = start ? Math.max(0, Math.floor((end ?? (active && now ? now : start)) - start)) : 0;
@@ -76,13 +79,25 @@ export function ToolStream({ state, visible, onEvidence, answer }: { state: Inve
       {!logs.length && <div className="py-20 text-center"><Terminal size={28} className="mx-auto mb-4 text-muted" />
         <p className="font-editorial text-4xl sm:text-5xl tracking-tight text-ink">Who would you like to understand?</p>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted">Start with a name and context, or a public profile. We’ll follow the sources together.</p></div>}
+      <ResearchProgress logs={logs} />
       {logs.map((event, index) => {
         if (event.type === "case.ready" || event.type === "source.started" || event.type === "source.complete") return <p key={index} className="py-2 text-sm text-muted">{event.text}</p>;
         if (event.type === "source.failed" || event.type === "source.cancelled") return <p key={index} role="alert" className="py-2 text-sm text-warning">{event.error}</p>;
         if (event.type === "investigation.started" || event.type === "user.message") return <div key={index} className="flex justify-end py-4"><p className="max-w-[85%] whitespace-pre-wrap break-words rounded-xl rounded-tr-sm bg-wash px-4 py-3 text-sm leading-relaxed text-ink">{event.text || event.target}</p></div>;
         if (event.type === "conversation.failed" || event.type === "conversation.cancelled") return <p key={index} role="alert" className="py-2 text-xs text-warning">{event.error || event.text}</p>;
         if (event.type === "tool.started") return <ToolRow key={event.tool_use_id || index} event={event} result={results.get(event.tool_use_id || "")} state={state} onEvidence={onEvidence} />;
-        if (["evidence.skipped", "investigation.failed"].includes(event.type)) return <div key={index} className="rounded-lg border border-danger/25 bg-danger/5 p-3 text-xs text-danger"><p className="flex items-center gap-2"><AlertTriangle size={13} />{toolLabel(event.tool) || "Investigation"}</p><p className="mt-2 leading-relaxed">{event.error || event.reason}</p></div>;
+        if (event.type === "investigation.failed") {
+          if (event !== latestFailure) return null;
+          return <div key={index} aria-label="Investigation stopped" className="rounded-lg border border-danger/25 bg-danger/5 p-3 text-xs text-danger">
+            <p className="flex items-center gap-2"><AlertTriangle size={13} />Investigation stopped</p>
+            <p className="mt-2 leading-relaxed">{event.text || event.error || event.reason}</p>
+            {failures.length > 1 && <details className="mt-3 text-muted">
+              <summary className="cursor-pointer">Earlier error details ({failures.length - 1})</summary>
+              {failures.slice(0, -1).map((failure, i) => <p key={i} className="mt-2 break-words">{failure.phase ? `${failure.phase}: ` : ""}{failure.text || failure.error || failure.reason}</p>)}
+            </details>}
+          </div>;
+        }
+        if (event.type === "evidence.skipped") return <div key={index} className="rounded-lg border border-danger/25 bg-danger/5 p-3 text-xs text-danger"><p className="flex items-center gap-2"><AlertTriangle size={13} />{toolLabel(event.tool) || "Evidence"}</p><p className="mt-2 leading-relaxed">{event.text || event.error || event.reason}</p></div>;
         if (event.type === "agent.text") return <AgentResponse key={index} text={event.text || ""}
           label={event.subagent && event.subagent !== "orchestrator" ? "Source harvester" : "ARC"}
           streaming={active && !paused && index === logs.length - 1} />;

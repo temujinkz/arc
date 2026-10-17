@@ -9,12 +9,15 @@ from fastmcp.exceptions import ToolError
 from backend.osint_tools import professional_domain, public_url
 
 
-async def public_json(url: str, params: dict):
-    async with httpx.AsyncClient() as client:
+async def public_json(url: str, params: dict, *, timeout: float | None = None):
+    options = {} if timeout is None else {"timeout": timeout}
+    async with httpx.AsyncClient(**options) as client:
         try:
             response = await client.get(url, params=params)
             response.raise_for_status()
             return response.json(), str(response.url)
+        except httpx.TimeoutException:
+            raise ToolError("Public metadata service timed out; availability is unknown. No absence claim or automatic retry.") from None
         except httpx.HTTPStatusError as exc:
             raise ToolError(f"Public metadata service returned HTTP {exc.response.status_code}; no automatic retry.") from None
         except (httpx.RequestError, ValueError):
@@ -49,7 +52,9 @@ async def inspect_domain_archive(domain: str, result_limit: int) -> dict:
         raise ToolError("Choose a positive result_limit for the archive index request.")
     params = {"url": f"{domain}/*", "output": "json", "filter": ["statuscode:200", "mimetype:text/html"],
               "fl": "timestamp,original,mimetype,statuscode,digest", "collapse": "urlkey", "limit": result_limit}
-    data, url = await public_json("https://web.archive.org/cdx/search/cdx", params)
+    # Match the documented WaybackSession client timeout, not a provider SLA.
+    # https://wayback.readthedocs.io/en/stable/usage.html#wayback.WaybackSession
+    data, url = await public_json("https://web.archive.org/cdx/search/cdx", params, timeout=60.0)
     if not isinstance(data, list) or (data and data[0] != ["timestamp", "original", "mimetype", "statuscode", "digest"]):
         raise ToolError("Archive returned an unsupported index response.")
     pages = []

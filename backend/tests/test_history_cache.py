@@ -56,7 +56,7 @@ class HistoryTests(unittest.IsolatedAsyncioTestCase):
                 evidence = pad.raw_evidence
             self.assertFalse(main.runs)
             async with main.lifespan(main.app), httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url="http://offline") as client:
-                with patch("backend.main.run_osint_orchestrator", side_effect=AssertionError("No paid research")), patch("backend.conversation.ClaudeSDKClient", side_effect=AssertionError("No paid chat")):
+                with patch("backend.main.run_workspace_research", side_effect=AssertionError("No paid research")), patch("backend.conversation.ClaudeSDKClient", side_effect=AssertionError("No paid chat")):
                     history = (await client.get("/api/investigations")).json()["investigations"]
                     self.assertEqual(history[0]["session_id"], "saved")
                     self.assertFalse(history[0]["active"])
@@ -102,37 +102,36 @@ class HistoryTests(unittest.IsolatedAsyncioTestCase):
 
 class CacheTests(unittest.IsolatedAsyncioTestCase):
     async def test_real_osint_proxy_reuses_success_and_keeps_schema(self):
-        # Use ARC's actual MCP tool/server. Only its Exa network client is replaced.
+        # Use ARC's actual MCP tool/server; only the HTTP transport is replaced.
         calls = []
-        class OfflineExa:
-            def __init__(self, **kwargs): self.client = self
-            async def __aenter__(self): return self
-            async def __aexit__(self, *args): pass
-            async def search(self, query, **kwargs):
-                calls.append((query, kwargs))
-                return SimpleNamespace(results=[SimpleNamespace(title="Person", url="https://example.com", highlights=["Public source"], published_date=None)])
+        def handler(request):
+            calls.append(request)
+            return httpx.Response(200, json={"results": {"web": [
+                {"title": "Person", "url": "https://example.com", "snippets": ["Public source"]}
+            ]}})
+        real_client = httpx.AsyncClient
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "cache.sqlite3"
             cache = SourceCache(path)
             proxy = create_proxy(osint)
-            proxy.add_middleware(SourceCacheMiddleware(cache, "offline", {"search_identity_exa"}))
-            with patch("backend.mcp_servers.osint_mcp.AsyncExa", OfflineExa), patch.dict(os.environ, {"EXA_API_KEY": "offline"}):
+            proxy.add_middleware(SourceCacheMiddleware(cache, "offline", {"search_web_you"}))
+            with patch("httpx.AsyncClient", side_effect=lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw)), patch.dict(os.environ, {"YDC_API_KEY": "offline", "ARC_RESEARCH_OFFLINE": "0"}):
                 async with Client(proxy) as client:
-                    self.assertIn("search_identity_exa", [tool.name for tool in await client.list_tools()])
-                    first = await client.call_tool("search_identity_exa", {"query": "person"})
-                    second = await client.call_tool("search_identity_exa", {"query": " person "})
+                    self.assertIn("search_web_you", [tool.name for tool in await client.list_tools()])
+                    first = await client.call_tool("search_web_you", {"query": "person"})
+                    second = await client.call_tool("search_web_you", {"query": " person "})
                     self.assertEqual(len(calls), 1)
                     self.assertEqual(first.structured_content, second.structured_content)
                     payload = {"content": [item.model_dump(mode="json") for item in second.content], "structuredContent": second.structured_content}
                     info = source_cache_info(payload)
                     self.assertTrue(info["hit"])
                     pad = InvestigationScratchpad("reused")
-                    await pad.record_tool_result("tool", "mcp__osint__search_identity_exa", payload)
+                    await pad.record_tool_result("tool", "mcp__osint__search_web_you", payload)
                     self.assertEqual(pad.raw_evidence[0]["observed_at"], info["observed_at"])
                     self.assertEqual(pad.raw_evidence[0]["data"], normalize_output(payload))
             cache.close()
             reopened = SourceCache(path)
-            _, hit = reopened.claim("offline", "search_identity_exa", {"query": "person"})
+            _, hit = reopened.claim("offline", "search_web_you", {"query": "person"})
             self.assertTrue(hit["hit"])
             reopened.close()
 

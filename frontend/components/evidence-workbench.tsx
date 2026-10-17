@@ -42,7 +42,7 @@ export function EvidenceWorkbench({ state, onCreate, onCollect, onEvidence, onSe
   const error = problem.sessionId === state.sessionId ? problem.message : "";
   const option = sources.find((item) => item.tool === source);
   const kind = option?.input_kind || "query";
-  const sourceRevision = state.logs.filter((event) => ["tool.finished", "tool.failed", "graph.draft_node", "graph.final_commit", "source.complete", "source.failed", "source.cancelled"].includes(event.type)).length;
+  const sourceRevision = state.logs.filter((event) => ["tool.finished", "tool.failed", "graph.draft_node", "graph.final_commit", "graph.withdrawn", "source.complete", "source.failed", "source.cancelled"].includes(event.type)).length;
 
   useEffect(() => {
     const controller = new AbortController();

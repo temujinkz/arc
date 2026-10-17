@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { parseReplayBundle } from '../lib/replay.ts';
+const valid=JSON.parse(await readFile(process.argv[2], 'utf8'));
+assert.equal(parseReplayBundle(valid).version,1);
+assert.throws(()=>parseReplayBundle({...valid,token_report:{}}));
+assert.throws(()=>parseReplayBundle({...valid,events:[{type:'graph.research_preview',graph:{nodes:[{}],edges:[]}}]}));
+assert.throws(()=>parseReplayBundle({...valid,events:[{type:'research.coverage',coverage:[{statement:'untyped'}]}]}));
+assert.throws(()=>parseReplayBundle({...valid,events:[{type:'task.queued',depth:'not a number'}]}));
+console.log('Replay validation: valid artifact accepted; four malformed nested inputs rejected.');

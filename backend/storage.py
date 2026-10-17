@@ -44,6 +44,7 @@ class RunStore:
         state = {key: getattr(run, key) for key in (
             "done", "budget", "chat_session_id", "chat_cost", "chat_blocked",
             "chat_requests", "refresh_sources",
+            "cached_source_session_id", "research_case_path", "research_run_id",
             "collection_mode", "source_requests",
             "chat_evidence_ids",
         )}

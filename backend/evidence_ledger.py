@@ -50,6 +50,8 @@ def source_observations(source: str, data) -> list[dict]:
         fields["value"] = "Certificate hostname"
     if source.endswith("search_public_web"):
         fields["body"] = "Search snippet"
+    if source.endswith("search_web_you"):
+        fields.update(snippets="Search snippet", page_age="Provider page date (unverified)")
     observations = []
 
     def walk(value, path="$", inherited=None):
@@ -75,7 +77,10 @@ def build_ledger(run) -> dict:
     evidence = run.scratchpad.raw_evidence if run.scratchpad else []
     starts = {e["tool_use_id"]: e for e in run.events if e["type"] == "tool.started" and e.get("tool_use_id")}
     ends = {e["tool_use_id"]: e for e in run.events if e["type"] in {"tool.finished", "tool.failed", "evidence.skipped"} and e.get("tool_use_id")}
-    graph_event = next((e for e in reversed(run.events) if e["type"] == "graph.final_commit"), None)
+    graph_event = next((e for e in reversed(run.events) if e["type"] in {"graph.final_commit", "graph.withdrawn"}), None)
+    withdrawal_reason = graph_event.get("reason") if graph_event and graph_event["type"] == "graph.withdrawn" else None
+    if withdrawal_reason is not None or (graph_event and graph_event["type"] == "graph.withdrawn"):
+        graph_event = None
     graph = graph_event.get("graph") if graph_event else None
     graph_ids = set()
     if graph:
@@ -133,7 +138,8 @@ def build_ledger(run) -> dict:
                         "reused_records": sum(r["reused"] for r in records), "failed_attempts": sum(g["failed"] for g in groups.values()),
                         "unfinished_attempts": sum(g["unfinished"] for g in groups.values()),
                         "added_after_assessment": len(added_since - {None})},
-            "assessment": {"present": graph is not None, "committed_at": graph_event.get("timestamp") if graph_event else None,
+            "assessment": {"present": graph is not None, "withdrawal_reason": withdrawal_reason,
+                           "committed_at": graph_event.get("timestamp") if graph_event else None,
                            "summary": (graph or {}).get("summary"), "graph": graph},
             "limitations": ["Coverage describes saved records and attempted tools, not all possible sources or identity certainty.",
                             "Matching handles and author names are leads; operator selection is not independent verification.",
@@ -156,7 +162,8 @@ def report_markdown(run) -> str:
         return f"`{text}`"
     lines = ["# ARC research report", "", f"Target: {quote(report['target'])}", "",
              "## Scope", "", *[f"- {item}" for item in report["limitations"]], "", "## Assessment", "",
-             quote(report["assessment"]["summary"]) if report["assessment"]["present"] else "No model assessment has been committed.",
+             quote(report["assessment"]["summary"]) if report["assessment"]["present"] else (
+                 "Assessment withdrawn: " + quote(report["assessment"]["withdrawal_reason"]) if report["assessment"]["withdrawal_reason"] else "No model assessment has been committed."),
              "", f"Records added after assessment: {report['summary']['added_after_assessment']}", "", "## Source evidence", ""]
     for record in report["records"]:
         lines.extend([f"### {record['evidence_id']}", "", f"Source: {quote(record['source'])}",

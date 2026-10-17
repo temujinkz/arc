@@ -27,6 +27,9 @@ class Investigation:
     store: RunStore | None = None
     saved_events: int = 0
     saved_evidence: int = 0
+    cached_source_session_id: str | None = None
+    research_case_path: str | None = None
+    research_run_id: str | None = None
 
     def persist(self):
         if self.store:
@@ -45,7 +48,7 @@ class Investigation:
     @classmethod
     def restore(cls, snapshot: dict, store: RunStore):
         run = cls(snapshot["target"], events=snapshot["events"], store=store)
-        for key in ("done", "budget", "chat_session_id", "chat_cost", "chat_evidence_ids", "chat_blocked", "chat_requests", "refresh_sources", "collection_mode", "source_requests"):
+        for key in ("done", "budget", "chat_session_id", "chat_cost", "chat_evidence_ids", "chat_blocked", "chat_requests", "refresh_sources", "collection_mode", "source_requests", "cached_source_session_id", "research_case_path", "research_run_id"):
             if key in snapshot:
                 setattr(run, key, snapshot[key])
         pad = InvestigationScratchpad(snapshot["session_id"], run.emit)
