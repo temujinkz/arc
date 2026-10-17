@@ -42,7 +42,7 @@ export function EvidenceGraph({ graph, committed, selected, onSelect }: {
       <div className="absolute top-4 right-4 left-4 z-10 flex flex-wrap items-start justify-between gap-2">
         <div className="glass-card flex max-w-full flex-wrap items-center gap-2 px-3 py-2"><GitBranch size={13} className="text-accent" /><span className="mr-1 text-[11px] text-ink">Evidence map</span>
           <label className="sr-only" htmlFor="graph-filter">Filter graph nodes</label><select id="graph-filter" value={filter} onChange={(event) => setFilter(event.target.value as Filter)} className="rounded border border-line bg-surface px-2 py-1 text-[10px] text-muted">{Object.keys(filters).map((name) => <option key={name}>{name}</option>)}</select></div>
-        <span className="glass-card px-3 py-2.5 text-[10px] text-muted">{simulation.nodes.length} nodes · {committed ? "Committed graph" : `${graph.nodes.filter((node) => node.isDraft).length} draft signals`}</span>
+        <span className="glass-card px-3 py-2.5 text-[10px] text-muted">{simulation.nodes.length} nodes · {committed ? "Committed graph" : graph.nodes.some((node) => node.isDraft) ? `${graph.nodes.filter((node) => node.isDraft).length} draft signals` : "Uncommitted preview"}</span>
       </div>
       {simulation.nodes.length === 0 ? <div className="absolute inset-0 grid place-items-center p-8 text-center"><div><GitBranch size={32} className="mx-auto mb-4 text-muted" /><p className="text-sm text-muted">{graph.nodes.length ? "No nodes match this filter." : "Follow the evidence as it connects."}</p><p className="mt-2 text-xs text-muted">Dashed rings are draft sources. Solid nodes belong to the committed graph.</p></div></div>
         : size.width > 0 && size.height > 0 && <ForceGraph ref={engine}

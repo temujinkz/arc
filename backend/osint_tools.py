@@ -92,7 +92,7 @@ async def search_username_sherlock(username: str, sites: list[str]) -> dict:
     """Check a sourced username on explicit professional sites; matches are unverified leads.
 
     sites must use upstream names (e.g. GitHub, GitLab, Kaggle). Do not infer a
-    person's identity from matching handles or repeat a successful Maigret scan.
+    person's identity from matching handles. Never repeat this checker's completed scan.
     """
     username, sites = username_and_sites(username, sites)
     args = [username, "--csv", "--local", "--no-color"]
@@ -114,8 +114,8 @@ async def search_username_sherlock(username: str, sites: list[str]) -> dict:
 async def search_username_maigret(username: str, sites: list[str]) -> dict:
     """Alternative username checker on explicit professional sites, with recursion disabled.
 
-    Matches are leads, never verified identities. Use instead of Sherlock unless
-    a second check would resolve a specific uncertainty. Does not use Maigret AI.
+    Matches are leads, never verified identities. Keep its observations separate
+    from Sherlock; duplicate matches are not independent proof. Does not use Maigret AI.
     """
     username, sites = username_and_sites(username, sites)
     args = [username, "--json", "simple", "--folderoutput", ".", "--no-recursion", "--no-extracting"]

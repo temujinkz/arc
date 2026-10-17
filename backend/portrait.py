@@ -1,4 +1,8 @@
-"""Apply the professional portrait harness to an existing cached investigation."""
+"""Legacy v1 model-only portrait enrichment (explicit authorization required).
+
+Recursive v2 uses backend.research.projection.synthesize_portrait with a bounded
+reviewed-finding packet. The offline milestone leaves missing sections explicit.
+"""
 
 import argparse
 import asyncio

@@ -1,4 +1,4 @@
-"""Use the Agent SDK to structure evidence, then commit the validated graph."""
+"""Legacy v1 SDK synthesis plus the reviewed v2 research projection boundary."""
 
 import json
 from pathlib import Path
@@ -89,3 +89,28 @@ async def execute_graph_architect_pass(
     scratchpad.emit({"type": "graph.architect_output", "output": result.structured_output,
                      "model": options.model, "sdk_session_id": result.session_id})
     await commit_architect_output(scratchpad, result.structured_output, options.model)
+
+
+async def project_research_graph(board, run_id, *, scratchpad=None, commit=False, execution_mode="offline"):
+    """V2: no model call and no raw evidence dump. Offline mode is preview-only."""
+    from backend.research.projection import project_case
+    from backend.research.evidence import EvidenceReader
+    snapshot = board.snapshot(run_id)
+    reader = EvidenceReader(board, run_id)
+    for finding in snapshot.findings:
+        if finding.reviewed:
+            for sid in finding.span_ids:
+                reader.read_span(sid)
+    draft = project_case(snapshot)
+    board.emit(run_id, "graph.research_preview", nodes=len(draft.graph.nodes) if draft.graph else 0,
+               edges=len(draft.graph.edges) if draft.graph else 0, committed=False)
+    if commit:
+        if execution_mode == "offline" or scratchpad is None:
+            raise ValueError("Offline research cannot write Neo4j")
+        if draft.graph is None:
+            raise ValueError("No reviewed graph to commit")
+        span_ids = {sid for node in draft.graph.nodes for sid in node.span_ids}
+        manifest = [reader.read_span(sid).model_dump() for sid in sorted(span_ids)]
+        await commit_graph(scratchpad, draft.graph, "reviewed-research-v2", evidence_manifest=manifest)
+        board.emit(run_id, "graph.final_commit", graph=draft.graph.model_dump())
+    return draft

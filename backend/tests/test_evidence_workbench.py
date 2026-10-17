@@ -26,10 +26,27 @@ from backend.storage import RunStore
 
 
 class WorkbenchTests(unittest.IsolatedAsyncioTestCase):
+    async def test_withdrawn_assessment_disappears_from_ledger_and_exports(self):
+        from backend.evidence_ledger import export_report, report_markdown
+        run = Investigation("Public professional")
+        run.scratchpad = InvestigationScratchpad("withdrawn", run.emit)
+        run.scratchpad.emit({"type": "graph.final_commit", "graph": {
+            "summary": "WRONG IDENTITY ASSERTION", "nodes": [], "edges": []}})
+        self.assertTrue(build_ledger(run)["assessment"]["present"])
+        run.scratchpad.emit({"type": "graph.withdrawn", "reason": "Identity mismatch"})
+        assessment = export_report(run)["assessment"]
+        self.assertFalse(assessment["present"])
+        self.assertEqual(assessment["withdrawal_reason"], "Identity mismatch")
+        self.assertNotIn("WRONG IDENTITY ASSERTION", report_markdown(run))
+        self.assertEqual(run.events[0]["graph"]["summary"], "WRONG IDENTITY ASSERTION")
+        run.scratchpad.emit({"type": "graph.final_commit", "graph": {
+            "summary": "Corrected later", "nodes": [], "edges": []}})
+        self.assertTrue(build_ledger(run)["assessment"]["present"])
+
     async def test_case_lookup_idempotency_provenance_and_exports_survive_restart(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"ARC_DATABASE_PATH": str(Path(directory) / "history.sqlite3")}, clear=True):
             result = {"structuredContent": {"source_url": "https://example.org/project", "results": [{"href": "https://github.com/public/project", "title": "<script>untrusted source text</script>"}]}}
-            with patch("backend.source_workbench.execute_source", AsyncMock(return_value=result)) as collect, patch("backend.main.run_osint_orchestrator", side_effect=AssertionError("No paid workflow")), patch("backend.private_vault.open_vault", side_effect=AssertionError("No private vault access")):
+            with patch("backend.source_workbench.execute_source", AsyncMock(return_value=result)) as collect, patch("backend.main.run_workspace_research", side_effect=AssertionError("No paid workflow")), patch("backend.private_vault.open_vault", side_effect=AssertionError("No private vault access")):
                 async with main.lifespan(main.app), httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url="http://offline") as client:
                     created = await client.post("/api/cases", json={"target": "Public project", "request_id": "case"})
                     self.assertEqual(created.status_code, 201)
@@ -112,14 +129,37 @@ class WorkbenchTests(unittest.IsolatedAsyncioTestCase):
         del run.scratchpad.raw_evidence[0]["content_sha256"]
         self.assertIsNone(build_ledger(run)["records"][0]["integrity_matches"])
 
+    async def test_archive_allows_slow_index_response_and_reports_timeout_without_retry(self):
+        rows = [["timestamp", "original", "mimetype", "statuscode", "digest"],
+                ["20200102030405", "https://example.org/about", "text/html", "200", "digest"]]
+        calls = []
+        def slow_index(request):
+            calls.append(request)
+            if request.extensions["timeout"]["read"] <= 5:
+                raise httpx.ReadTimeout("Index needs more than the generic five seconds", request=request)
+            return httpx.Response(200, json=rows, request=request)
+        real_client = httpx.AsyncClient
+        with patch("backend.domain_sources.httpx.AsyncClient", side_effect=lambda **kw: real_client(transport=httpx.MockTransport(slow_index), **kw)):
+            result = await inspect_domain_archive("example.org", 1)
+        self.assertEqual(result["pages"][0]["url"], "https://example.org/about")
+        self.assertEqual(len(calls), 1)
+        calls.clear()
+        def outage(request):
+            calls.append(request)
+            raise httpx.ReadTimeout("No response", request=request)
+        with patch("backend.domain_sources.httpx.AsyncClient", side_effect=lambda **kw: real_client(transport=httpx.MockTransport(outage), **kw)):
+            with self.assertRaisesRegex(ToolError, "timed out"):
+                await inspect_domain_archive("example.org", 1)
+        self.assertEqual(len(calls), 1)
+
     async def test_dns_and_archive_errors_are_not_negative_identity_evidence(self):
         with patch("backend.domain_sources.public_json", AsyncMock(return_value=({"Status": 2}, "https://dns.google/resolve"))):
             with self.assertRaises(ToolError):
                 await inspect_domain_dns("example.org")
-        rows = [["timestamp", "original", "mimetype", "statuscode", "digest"], ["20261018000100", "https://example.org/about", "text/html", "200", "archive-digest"]]
+        rows = [["timestamp", "original", "mimetype", "statuscode", "digest"], ["20200102030405", "https://example.org/about", "text/html", "200", "archive-digest"]]
         with patch("backend.domain_sources.public_json", AsyncMock(return_value=(rows, "https://web.archive.org/cdx/search/cdx"))):
             report = await inspect_domain_archive("example.org", 1)
-            self.assertEqual(report["pages"][0]["source_url"], "https://web.archive.org/web/20261018000100/https://example.org/about")
+            self.assertEqual(report["pages"][0]["source_url"], "https://web.archive.org/web/20200102030405/https://example.org/about")
             self.assertFalse(report["identity_verified"])
 
     async def test_resumed_chat_receives_new_evidence_without_resetting_cost(self):

@@ -12,6 +12,7 @@ from claude_agent_sdk import (
 )
 from claude_agent_sdk.types import StreamEvent
 
+from backend.collection_coverage import CollectionCoverage
 from backend.agent import mcp_registry
 from backend.prompts import HARVESTER_PROMPT, ORCHESTRATOR_PROMPT
 from backend.scratchpad import InvestigationScratchpad
@@ -53,6 +54,9 @@ async def answer_questions(scratchpad, tool_id, input_data):
 def build_options(scratchpad: InvestigationScratchpad, budget: float) -> ClaudeAgentOptions:
     servers, allowed = mcp_registry(refresh_id=scratchpad.session_id if scratchpad.refresh_sources else "")
 
+    coverage = CollectionCoverage(scratchpad, allowed)
+    scratchpad.collection_coverage = coverage
+
     def call_id(data, fallback):
         value = data.get("tool_use_id") or fallback
         if not value:
@@ -64,6 +68,7 @@ def build_options(scratchpad: InvestigationScratchpad, budget: float) -> ClaudeA
         if name not in {*allowed, "Agent", "AskUserQuestion"}:
             return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
                     "permissionDecision": "deny", "permissionDecisionReason": "Tool is not enabled in ARC."}}
+        coverage.started(call_id(data, tool_use_id), name, data.get("tool_input", {}))
         await scratchpad.record_tool_start(
             call_id(data, tool_use_id), name, data.get("tool_input", {}),
             subagent=data.get("agent_id") or data.get("agent_type"),
@@ -71,6 +76,7 @@ def build_options(scratchpad: InvestigationScratchpad, budget: float) -> ClaudeA
         return {}
 
     async def completed(data, tool_use_id, context):
+        coverage.finished(call_id(data, tool_use_id))
         response = data.get("tool_response")
         recovered = False
         try:
@@ -101,6 +107,7 @@ def build_options(scratchpad: InvestigationScratchpad, budget: float) -> ClaudeA
         return {}
 
     async def failed(data, tool_use_id, context):
+        coverage.finished(call_id(data, tool_use_id))
         await scratchpad.record_tool_failure(call_id(data, tool_use_id), data["tool_name"])
         return {}
 
@@ -114,6 +121,7 @@ def build_options(scratchpad: InvestigationScratchpad, budget: float) -> ClaudeA
     hooks = {name: [HookMatcher(matcher=".*", hooks=[callback])] for name, callback in (
         ("PreToolUse", started), ("PostToolUse", completed), ("PostToolUseFailure", failed),
     )}
+    hooks["Stop"] = [HookMatcher(hooks=[coverage.stop])]
     return ClaudeAgentOptions(
         model=model_for("orchestrator"), cwd=str(Path(".arc").resolve()),
         system_prompt=ORCHESTRATOR_PROMPT, tools=["Agent", "AskUserQuestion"],
@@ -144,9 +152,11 @@ async def harvest(target: str, scratchpad: InvestigationScratchpad, budget: floa
                                      "subagent": message.parent_tool_use_id or "orchestrator"})
             elif isinstance(message, ResultMessage):
                 result = message
+    if result is not None:
+        scratchpad.emit(usage_event(result, "collecting"))
+    scratchpad.collection_coverage.assert_complete()
     if result is None or result.is_error or result.subtype != "success":
         raise RuntimeError("Harvesting did not finish successfully.")
-    scratchpad.emit(usage_event(result, "collecting"))
     scratchpad.emit({"type": "agent.result", "text": result.result,
                      "sdk_session_id": result.session_id})
     return result
@@ -176,3 +186,14 @@ async def run_osint_orchestrator(target: str, scratchpad: InvestigationScratchpa
                          "error": type(exc).__name__})
     finally:
         scratchpad.cancel_pending_input()
+
+
+async def run_recursive_investigation(goal, board, worker, policy, *, critic=None):
+    """Explicit new engine entry point; adapters are injected, never inferred from keys.
+
+    Legacy completed investigations remain readable. The offline replay uses this
+    entry point; enabling a paid worker requires a separately authorized adapter.
+    """
+    from backend.research.scheduler import run_research
+    from backend.research.critic import review_progress
+    return await run_research(goal, board, worker, policy, critic=critic or review_progress)
