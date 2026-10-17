@@ -46,6 +46,7 @@ class RunStore:
             "chat_requests", "refresh_sources",
             "collection_mode", "source_requests",
             "chat_evidence_ids",
+            "judgment_requests",
         )}
         state["human_decisions"] = pad.human_decisions
         created = run.events[0].get("timestamp", 0) if run.events else 0

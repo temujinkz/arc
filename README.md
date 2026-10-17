@@ -10,6 +10,7 @@ The application combines a FastAPI backend, a Next.js frontend, SQLite history a
 - Saved source payloads with collection times, SHA-256 integrity checks, request IDs, and source URLs.
 - Model-assisted investigations with live activity, human questions, cancellation, and evidence-only follow-ups.
 - Professional portraits and graph views with citations and assessment limitations.
+- The Council: evidence-linked readings through Jung, Diogenes, Nietzsche and a fictional Builder, with saved comparisons and explicit model starts.
 - Separate peer claims and a private local journal with explicit approval before sharing context.
 - Evidence JSON, Markdown reports, and Maltego CSV exports.
 
@@ -84,6 +85,14 @@ Completed runs replay their saved events without launching another investigation
 Interrupted or unknown provider operations are not automatically resumed or retried.
 A fresh source snapshot requires an explicit request.
 
+After collecting evidence, open **The Council**, select one to four voices, and choose **Let them judge**.
+That action authorizes one model reading using the configured orchestrator model and remaining investigation threshold.
+Historical voices are inspired lenses, not authentic quotations or psychological diagnoses.
+Each take includes its supporting evidence, caveats and a question to explore; insufficient evidence can produce a withheld judgment.
+Readings remain separate from source facts, public graphs, peer claims and private journal context.
+Saved readings survive restarts and retain their original evidence snapshot. New sources do not automatically trigger another model call.
+Evidence cases can use the configured positive `CLAUDE_MAX_BUDGET_USD` threshold; each reading's reported usage reduces the remainder.
+
 ## Storage and privacy
 
 Research history and source caching use `.arc/arc.sqlite3` by default.
@@ -113,6 +122,9 @@ Preserve original evidence collection times when reusing saved source results.
 | `GET /api/investigate/stream/{session_id}` | Replay and stream investigation events |
 | `GET /api/investigate/{session_id}/ledger` | Inspect source records and assessment links |
 | `POST /api/investigate/{session_id}/sources` | Submit an explicit free source lookup |
+| `GET /api/judgments/personas` | List Council personas without invoking a model |
+| `GET /api/investigate/{session_id}/judgments` | Inspect saved readings, evidence snapshot and budget availability |
+| `POST /api/investigate/{session_id}/judgments` | Explicitly authorize an idempotent persona reading |
 | `GET /api/investigate/{session_id}/exports/report.json` | Export evidence and the saved assessment |
 | `GET /api/investigate/{session_id}/exports/report.md` | Export a readable evidence report |
 | `GET /api/investigate/{session_id}/exports/maltego.csv` | Export a committed public graph |

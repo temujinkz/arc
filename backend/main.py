@@ -21,6 +21,7 @@ from backend.profile_routes import router as profile_router
 from backend.vault_routes import router as vault_router
 from backend.agent_routes import router as agent_router
 from backend.evidence_routes import router as evidence_router
+from backend.judgment_routes import router as judgment_router
 
 
 runs: dict[str, Investigation] = {}
@@ -67,6 +68,7 @@ app.include_router(profile_router)
 app.include_router(vault_router)
 app.include_router(agent_router)
 app.include_router(evidence_router)
+app.include_router(judgment_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in os.getenv(
@@ -252,7 +254,11 @@ async def cancel_investigation(session_id: str):
         await asyncio.gather(run.task, return_exceptions=True)
         # Also handles cancellation before the task entered its coroutine.
         if not run.done:
-            run.emit({"type": "investigation.cancelled", "session_id": session_id})
+            pending_council = [request for request in run.judgment_requests.values() if request["state"] == "pending"]
+            for request in pending_council:
+                request["state"] = "cancelled"
+            run.scratchpad.emit({"type": "judgment.cancelled" if pending_council else "investigation.cancelled",
+                                 "text": "Operation stopped before completion. Unknown usage blocks further model spending."})
             run.chat_blocked = True
             run.finish()
     return {"status": "stopped"}

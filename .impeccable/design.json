@@ -1,0 +1,414 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-17T21:55:21.529491Z",
+  "title": "Design System: ARC Workspace",
+  "extensions": {
+    "colorMeta": {
+      "workspace-bg": {
+        "role": "neutral",
+        "displayName": "Workspace bg"
+      },
+      "sidebar-bg": {
+        "role": "neutral",
+        "displayName": "Sidebar bg"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text"
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Text secondary"
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Text muted"
+      },
+      "emerald": {
+        "role": "primary",
+        "displayName": "Emerald"
+      },
+      "emerald-action": {
+        "role": "primary",
+        "displayName": "Emerald action"
+      },
+      "action-ink": {
+        "role": "neutral",
+        "displayName": "Action ink"
+      },
+      "subtle-edge": {
+        "role": "neutral",
+        "displayName": "Subtle edge"
+      },
+      "council-ink": {
+        "role": "neutral",
+        "displayName": "Council ink"
+      },
+      "council-muted": {
+        "role": "neutral",
+        "displayName": "Council muted"
+      },
+      "council-surface": {
+        "role": "neutral",
+        "displayName": "Council surface"
+      },
+      "council-paper-ink": {
+        "role": "neutral",
+        "displayName": "Council paper ink"
+      },
+      "council-action": {
+        "role": "primary",
+        "displayName": "Council action"
+      },
+      "council-action-hover": {
+        "role": "primary",
+        "displayName": "Council action hover"
+      },
+      "council-action-ink": {
+        "role": "primary",
+        "displayName": "Council action ink"
+      },
+      "sage": {
+        "role": "secondary",
+        "displayName": "Sage",
+        "tonalRamp": [
+          "oklch(15% 0.0456 125.39)",
+          "oklch(26% 0.0456 125.39)",
+          "oklch(37% 0.0456 125.39)",
+          "oklch(49% 0.0456 125.39)",
+          "oklch(60% 0.0456 125.39)",
+          "oklch(72% 0.0456 125.39)",
+          "oklch(84% 0.0456 125.39)",
+          "oklch(95% 0.0456 125.39)"
+        ]
+      },
+      "sage-paper": {
+        "role": "secondary",
+        "displayName": "Sage paper",
+        "tonalRamp": [
+          "oklch(15% 0.0210 124.67)",
+          "oklch(26% 0.0210 124.67)",
+          "oklch(37% 0.0210 124.67)",
+          "oklch(49% 0.0210 124.67)",
+          "oklch(60% 0.0210 124.67)",
+          "oklch(72% 0.0210 124.67)",
+          "oklch(84% 0.0210 124.67)",
+          "oklch(95% 0.0210 124.67)"
+        ]
+      },
+      "sage-deep": {
+        "role": "secondary",
+        "displayName": "Sage deep",
+        "tonalRamp": [
+          "oklch(15% 0.0442 136.71)",
+          "oklch(26% 0.0442 136.71)",
+          "oklch(37% 0.0442 136.71)",
+          "oklch(49% 0.0442 136.71)",
+          "oklch(60% 0.0442 136.71)",
+          "oklch(72% 0.0442 136.71)",
+          "oklch(84% 0.0442 136.71)",
+          "oklch(95% 0.0442 136.71)"
+        ]
+      },
+      "ochre": {
+        "role": "secondary",
+        "displayName": "Ochre",
+        "tonalRamp": [
+          "oklch(15% 0.0935 85.89)",
+          "oklch(26% 0.0935 85.89)",
+          "oklch(37% 0.0935 85.89)",
+          "oklch(49% 0.0935 85.89)",
+          "oklch(60% 0.0935 85.89)",
+          "oklch(72% 0.0935 85.89)",
+          "oklch(84% 0.0935 85.89)",
+          "oklch(95% 0.0935 85.89)"
+        ]
+      },
+      "ochre-paper": {
+        "role": "secondary",
+        "displayName": "Ochre paper",
+        "tonalRamp": [
+          "oklch(15% 0.0388 89.10)",
+          "oklch(26% 0.0388 89.10)",
+          "oklch(37% 0.0388 89.10)",
+          "oklch(49% 0.0388 89.10)",
+          "oklch(60% 0.0388 89.10)",
+          "oklch(72% 0.0388 89.10)",
+          "oklch(84% 0.0388 89.10)",
+          "oklch(95% 0.0388 89.10)"
+        ]
+      },
+      "ochre-deep": {
+        "role": "secondary",
+        "displayName": "Ochre deep",
+        "tonalRamp": [
+          "oklch(15% 0.0702 80.44)",
+          "oklch(26% 0.0702 80.44)",
+          "oklch(37% 0.0702 80.44)",
+          "oklch(49% 0.0702 80.44)",
+          "oklch(60% 0.0702 80.44)",
+          "oklch(72% 0.0702 80.44)",
+          "oklch(84% 0.0702 80.44)",
+          "oklch(95% 0.0702 80.44)"
+        ]
+      },
+      "mauve": {
+        "role": "secondary",
+        "displayName": "Mauve",
+        "tonalRamp": [
+          "oklch(15% 0.0435 313.65)",
+          "oklch(26% 0.0435 313.65)",
+          "oklch(37% 0.0435 313.65)",
+          "oklch(49% 0.0435 313.65)",
+          "oklch(60% 0.0435 313.65)",
+          "oklch(72% 0.0435 313.65)",
+          "oklch(84% 0.0435 313.65)",
+          "oklch(95% 0.0435 313.65)"
+        ]
+      },
+      "mauve-paper": {
+        "role": "secondary",
+        "displayName": "Mauve paper",
+        "tonalRamp": [
+          "oklch(15% 0.0170 316.93)",
+          "oklch(26% 0.0170 316.93)",
+          "oklch(37% 0.0170 316.93)",
+          "oklch(49% 0.0170 316.93)",
+          "oklch(60% 0.0170 316.93)",
+          "oklch(72% 0.0170 316.93)",
+          "oklch(84% 0.0170 316.93)",
+          "oklch(95% 0.0170 316.93)"
+        ]
+      },
+      "mauve-deep": {
+        "role": "secondary",
+        "displayName": "Mauve deep",
+        "tonalRamp": [
+          "oklch(15% 0.0549 313.36)",
+          "oklch(26% 0.0549 313.36)",
+          "oklch(37% 0.0549 313.36)",
+          "oklch(49% 0.0549 313.36)",
+          "oklch(60% 0.0549 313.36)",
+          "oklch(72% 0.0549 313.36)",
+          "oklch(84% 0.0549 313.36)",
+          "oklch(95% 0.0549 313.36)"
+        ]
+      },
+      "clay": {
+        "role": "secondary",
+        "displayName": "Clay",
+        "tonalRamp": [
+          "oklch(15% 0.0667 44.89)",
+          "oklch(26% 0.0667 44.89)",
+          "oklch(37% 0.0667 44.89)",
+          "oklch(49% 0.0667 44.89)",
+          "oklch(60% 0.0667 44.89)",
+          "oklch(72% 0.0667 44.89)",
+          "oklch(84% 0.0667 44.89)",
+          "oklch(95% 0.0667 44.89)"
+        ]
+      },
+      "clay-paper": {
+        "role": "secondary",
+        "displayName": "Clay paper",
+        "tonalRamp": [
+          "oklch(15% 0.0213 56.11)",
+          "oklch(26% 0.0213 56.11)",
+          "oklch(37% 0.0213 56.11)",
+          "oklch(49% 0.0213 56.11)",
+          "oklch(60% 0.0213 56.11)",
+          "oklch(72% 0.0213 56.11)",
+          "oklch(84% 0.0213 56.11)",
+          "oklch(95% 0.0213 56.11)"
+        ]
+      },
+      "clay-deep": {
+        "role": "secondary",
+        "displayName": "Clay deep",
+        "tonalRamp": [
+          "oklch(15% 0.0615 46.20)",
+          "oklch(26% 0.0615 46.20)",
+          "oklch(37% 0.0615 46.20)",
+          "oklch(49% 0.0615 46.20)",
+          "oklch(60% 0.0615 46.20)",
+          "oklch(72% 0.0615 46.20)",
+          "oklch(84% 0.0615 46.20)",
+          "oklch(95% 0.0615 46.20)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "body": {
+        "displayName": "Workspace body",
+        "purpose": "Compact sans-serif interface copy."
+      },
+      "label": {
+        "displayName": "Workspace label",
+        "purpose": "Small control and panel labels."
+      },
+      "metadata": {
+        "displayName": "Workspace metadata",
+        "purpose": "Existing compact status annotations; not body copy."
+      },
+      "caption": {
+        "displayName": "Workspace caption",
+        "purpose": "Existing secondary view labels and session identifiers; not body copy."
+      },
+      "council-display": {
+        "displayName": "Council display",
+        "purpose": "Council intro only; responsive sizes are recorded in DESIGN.md."
+      },
+      "council-headline": {
+        "displayName": "Council headline",
+        "purpose": "Headlines within persona takes."
+      },
+      "council-body": {
+        "displayName": "Council reading body",
+        "purpose": "Verdict prose, up to 70ch."
+      },
+      "council-question": {
+        "displayName": "Council question",
+        "purpose": "Italic serif questions within reading papers."
+      },
+      "workspace-editorial": {
+        "displayName": "Workspace editorial",
+        "purpose": "Newsreader workspace headings and wordmark."
+      }
+    },
+    "shadows": [
+      {
+        "name": "composer",
+        "value": "0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05)",
+        "purpose": "Existing chat composer only; Council papers have no shadow."
+      }
+    ],
+    "motion": [
+      {
+        "name": "workspace-transition",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Installed Tailwind default for workspace transition utilities."
+      },
+      {
+        "name": "council-control-transition",
+        "value": "background-color 160ms, color 160ms, border-color 160ms",
+        "purpose": "Council button state changes; disabled by prefers-reduced-motion."
+      },
+      {
+        "name": "activity-spin",
+        "value": "1.2s linear infinite",
+        "purpose": "Working status rotation; removed by prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "workspace-sm",
+        "value": "640px"
+      },
+      {
+        "name": "workspace-sidebar",
+        "value": "768px"
+      },
+      {
+        "name": "council-mobile-max",
+        "value": "640px"
+      },
+      {
+        "name": "council-single-take-max",
+        "value": "1100px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Workspace primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compact green action from the workspace component layer.",
+      "html": "<button class=\"ds-primary\">Collect source</button>",
+      "css": ".ds-primary{font-family:Geist,Arial,sans-serif;background:#295e49;color:#fff;padding:8px 16px;border:0;border-radius:8px;font-size:12px;line-height:16px;font-weight:600;cursor:pointer;transition:color 150ms cubic-bezier(.4,0,.2,1),background-color 150ms cubic-bezier(.4,0,.2,1)}.ds-primary:hover{background:rgb(41 94 73/.9)}.ds-primary:disabled{opacity:.4;cursor:not-allowed}.ds-primary:focus-visible{outline:2px solid #295e49;outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none;animation:none}}"
+    },
+    {
+      "name": "Sidebar new investigation action",
+      "kind": "button",
+      "description": "Green primary action used for a new investigation.",
+      "html": "<button class=\"ds-secondary\">New investigation</button>",
+      "css": ".ds-secondary{font-family:Geist,Arial,sans-serif;padding:12px;border:1px solid #295e49;border-radius:8px;background:#295e49;color:#fff;font-size:14px;line-height:20px;cursor:pointer;transition:background-color 150ms cubic-bezier(.4,0,.2,1)}.ds-secondary:hover{background:rgb(41 94 73/.9)}.ds-secondary:disabled{opacity:.4;cursor:not-allowed}.ds-secondary:focus-visible{outline:2px solid #295e49;outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none;animation:none}}"
+    },
+    {
+      "name": "Council start button",
+      "kind": "button",
+      "refersTo": "button-council",
+      "description": "Shared green start control with Council spacing.",
+      "html": "<button class=\"ds-council-submit\">Let them judge<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14m-7-7 7 7-7 7\"/></svg></button>",
+      "css": ".ds-council-submit{font-family:Geist,Arial,sans-serif;display:flex;align-items:center;justify-content:center;gap:20px;min-height:44px;padding:11px 18px;border:0;border-radius:7px;background:#295e49;color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:background-color 160ms,color 160ms,border-color 160ms}.ds-council-submit:hover:not(:disabled){background:color-mix(in srgb,#295e49 90%,#fffefa)}.ds-council-submit:disabled{opacity:.45;cursor:not-allowed}.ds-council-submit:focus-visible{outline:2px solid #295e49;outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-council-submit{transition:none;animation:none}}"
+    },
+    {
+      "name": "Composer field",
+      "kind": "input",
+      "description": "Filled textarea within the warm conversation composer.",
+      "html": "<div class=\"ds-composer\"><label class=\"ds-field-label\" for=\"ds-question\">Ask about collected evidence</label><textarea id=\"ds-question\" class=\"ds-composer-field\" rows=\"2\">Ask about the collected evidence.</textarea></div>",
+      "css": ".ds-composer{padding:12px;border:1px solid #d9ddd1;border-radius:16px;background:#fffefa;box-shadow:0 1px 3px 0 rgb(0 0 0/.05),0 1px 2px -1px rgb(0 0 0/.05)}.ds-composer:focus-within{border-color:rgb(41 94 73/.5)}.ds-field-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}.ds-composer-field{font-family:Geist,Arial,sans-serif;width:100%;min-height:48px;max-height:144px;resize:vertical;padding:4px;border:0;outline:none;background:transparent;color:#292f2a;font-size:14px;line-height:1.625}.ds-composer-field:disabled{opacity:.6}"
+    },
+    {
+      "name": "Current navigation row",
+      "kind": "nav",
+      "refersTo": "navigation-current",
+      "description": "Selected navigation state; the same row appears in the mobile dialog.",
+      "html": "<nav aria-label=\"Investigation navigation\"><button class=\"ds-nav-current\" aria-current=\"page\">The Council</button></nav>",
+      "css": ".ds-nav-current{font-family:Geist,Arial,sans-serif;display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;text-align:left;border:0;border-radius:8px;background:rgb(41 94 73/.1);color:#295e49;font-size:13px;line-height:19.5px;cursor:pointer;transition:color 150ms cubic-bezier(.4,0,.2,1),background-color 150ms cubic-bezier(.4,0,.2,1)}.ds-nav-current:focus-visible{outline:2px solid #295e49;outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-nav-current{transition:none;animation:none}}"
+    },
+    {
+      "name": "Selected persona",
+      "kind": "chip",
+      "description": "A sage selected cell from the connected persona strip; not a pill.",
+      "html": "<button class=\"ds-member\" aria-pressed=\"true\"><span class=\"ds-member-top\"><span class=\"ds-member-initials\" aria-hidden=\"true\">CJ</span><span class=\"ds-member-check\" aria-hidden=\"true\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m20 6-11 11-5-5\"/></svg></span></span><strong>Carl Jung</strong><span class=\"ds-member-role\">The pattern reader</span><span class=\"ds-member-line\">\u201cWhat is the work really saying?\u201d</span></button>",
+      "css": ".ds-member{font-family:Geist,Arial,sans-serif;display:block;width:240px;min-width:0;padding:20px 18px 22px;border:0;border-top:1px solid #d9ddd1;border-bottom:1px solid #d9ddd1;border-right:1px solid #d9ddd1;text-align:left;background:#e9ece3;color:#42533b;cursor:pointer;transition:background-color 160ms,color 160ms,border-color 160ms}.ds-member:hover:not(:disabled){background:#eeeee6}.ds-member:disabled{opacity:.45;cursor:not-allowed}.ds-member:focus-visible{outline:2px solid #295e49;outline-offset:3px}.ds-member-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:23px}.ds-member-initials{font:400 2.4rem/1 Georgia,\"Times New Roman\",serif;letter-spacing:-.04em}.ds-member-check{width:19px;height:19px;display:grid;place-items:center;border:1px solid #c5d2b2;border-radius:50%;background:#c5d2b2;color:#20241d}.ds-member strong{display:block;font-size:14px;font-weight:500;line-height:1.45;color:#292f2a}.ds-member-role{display:block;font-size:11px;margin-top:4px}.ds-member-line{display:block;max-width:23ch;margin-top:17px;font:italic 15px/1.5 Georgia,\"Times New Roman\",serif}@media(prefers-reduced-motion:reduce){.ds-member{transition:none;animation:none}}"
+    },
+    {
+      "name": "Council reading paper",
+      "kind": "card",
+      "refersTo": "council-paper",
+      "description": "Representative excerpt of the shipped sage paper, byline and question styling; sample text is drawn from the persona preview.",
+      "html": "<article class=\"ds-take\"><header class=\"ds-take-byline\"><span class=\"ds-take-initials\">CJ</span><div><h3>Carl Jung</h3><p>The pattern reader</p></div><span class=\"ds-take-stance\"></span></header><div class=\"ds-take-question\"><div><span>A question worth asking</span><button type=\"button\">Copy</button></div><p>What is the work really saying?</p></div></article>",
+      "css": ".ds-take{font-family:Geist,Arial,sans-serif;min-width:0;padding:26px;border-radius:12px;background:#e3e9da;color:#292d26;overflow-wrap:anywhere}.ds-take-byline{display:flex;gap:12px;align-items:center}.ds-take-initials{font:400 1.8rem/1 Georgia,\"Times New Roman\",serif;letter-spacing:-.04em;color:#42533b}.ds-take-byline h3{margin:0;font-size:12px;font-weight:600;line-height:1.5}.ds-take-byline p{margin:0;font-size:10px;line-height:1.5;color:#55594f}.ds-take-stance{margin-left:auto;max-width:90px;text-align:right;font-size:10px;line-height:1.5;color:#42533b}.ds-take-question{margin-top:23px;padding-top:18px;border-top:1px solid #343b272b}.ds-take-question>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.ds-take-question span{font-size:10px;color:#54594e}.ds-take-question button{font-family:Geist,Arial,sans-serif;display:flex;align-items:center;gap:5px;min-height:30px;padding:4px;border:0;background:transparent;font-size:10px;color:#42533b;cursor:pointer;transition:color 160ms}.ds-take-question button:hover{color:#20271b}.ds-take-question button:focus-visible{outline:2px solid #42533b;outline-offset:3px}.ds-take-question>p{font:italic 17px/1.6 Georgia,\"Times New Roman\",serif;margin:9px 0 0}@media(max-width:640px){.ds-take{padding:22px}}@media(prefers-reduced-motion:reduce){.ds-take-question button{transition:none;animation:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Evidence Workspace",
+    "overview": "The Next.js workspace is a quiet, dense operating environment: warm paper surfaces, compact sans-serif controls, restrained green actions and persistent investigation navigation. This document covers `frontend/`'s workspace shell and its Council extension. `landing/` is explicitly outside this boundary and retains its separate identity.\n\nThe Council keeps that shell and introduces an editorial reading layer: serif headlines, connected persona selectors and lightly tinted reading papers. Its typography and four palettes are local to Council, not a replacement identity for other tools. Recorded values come from the finished source; the sidecar is a representative component sampler, not a new component API.",
+    "keyCharacteristics": [
+      "Warm paper shell with tonal separation and compact controls.",
+      "Geist interface text, Newsreader workspace headings and Georgia Council readings.",
+      "Persona color stays consistent between selection, preview and reading.",
+      "Evidence access remains visible within each reading."
+    ],
+    "rules": [
+      {
+        "name": "The Persona Continuity Rule",
+        "body": "Preserve a persona's accent/paper/deep family across its selector, preview and reading.",
+        "section": "colors"
+      },
+      {
+        "name": "The Local Serif Rule",
+        "body": "Keep Georgia reading headlines and questions local to Council. Workspace editorial headings use Newsreader; navigation and controls use Geist.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Paper Rule",
+        "body": "Keep Council previews and takes unshadowed; their tinted paper and spacing provide separation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do retain the warm editorial workspace shell and compact sans-serif controls around Council.",
+      "Do preserve each persona's accent/paper/deep color relationship.",
+      "Do keep questions and receipts within their reading paper.",
+      "Do preserve keyboard focus, meaningful disabled states and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don't apply Council's serif type and tinted papers to unrelated workspace surfaces by default.",
+      "Don't treat `landing/` as governed by this workspace record.",
+      "Don't turn uppercase eyebrows or Unicode icon substitutes into patterns for new UI."
+    ]
+  }
+}
