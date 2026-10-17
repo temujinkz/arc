@@ -14,7 +14,8 @@ USERNAME_TOOLS = ('search_username_sherlock', 'search_username_maigret')
 DOMAIN_TOOLS = ('inspect_domain_dns', 'inspect_domain_archive', 'inspect_domain_theharvester')
 # These are shared profile hosts, not a subject's own project/domain infrastructure.
 PROFILE_HOSTS = {'linkedin.com', 'github.com', 'gitlab.com', 'x.com', 'twitter.com',
-                 'instagram.com', 'tiktok.com', 'youtube.com', 'facebook.com'}
+                 'instagram.com', 'tiktok.com', 'youtube.com', 'facebook.com',
+                 'apple.com', 'play.google.com'}
 
 
 class CollectionIncomplete(RuntimeError):

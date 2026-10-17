@@ -21,7 +21,6 @@ from backend.investigations import Investigation
 from backend.storage import RunStore, database_path
 from backend.profile_routes import router as profile_router
 from backend.vault_routes import router as vault_router
-from backend.agent_routes import router as agent_router
 from backend.evidence_routes import router as evidence_router
 from backend.judgment_routes import router as judgment_router
 
@@ -70,7 +69,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="ARC OSINT Engine", lifespan=lifespan)
 app.include_router(profile_router)
 app.include_router(vault_router)
-app.include_router(agent_router)
 app.include_router(evidence_router)
 app.include_router(judgment_router)
 app.add_middleware(

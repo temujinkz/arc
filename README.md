@@ -165,8 +165,7 @@ Owner cookies provide local access; global identity verification and account rec
 
 Journal edits invalidate approval of shareable context.
 Visitor responses use public facts and explicitly approved statements; raw journal notes do not enter public graphs, research history, or visitor prompts.
-Optional local inference uses `ARC_LOCAL_AGENT_URL` and `ARC_LOCAL_MODEL` with no cloud fallback.
-When local inference is unavailable, the interface offers manual context or an approved static brief.
+Owners write their shareable statements by hand and approve each one. There is no local model.
 
 Credentials, databases, local tools, verification receipts, and dependency directories are ignored by Git.
 Preserve original evidence collection times when reusing saved source results.

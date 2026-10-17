@@ -11,7 +11,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.private_vault import open_vault, OwnershipError
 from backend.public_profiles import get_profile
-from backend.local_agent import prepare_brief
 
 router = APIRouter(prefix="/api/vault")
 COOKIE = "arc_local_owner"
@@ -99,25 +98,6 @@ class Approval(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     revision: int = Field(ge=0)
     statements: list[str] = Field(max_length=20)
-
-
-@router.post("/{profile_id}/prepare")
-async def prepare_representation(profile_id: str, request: Request, response: Response):
-    token = owner_token(request)
-    try:
-        with open_vault() as vault:
-            view = vault.owner_view(profile_id, token)
-    except OwnershipError as exc:
-        raise HTTPException(403, str(exc)) from None
-    profile = await get_profile(profile_id)
-    if not profile:
-        raise HTTPException(404, "Public profile not found.")
-    response.headers["Cache-Control"] = "no-store"
-    result = await prepare_brief(profile, view["entries"])
-    with open_vault() as vault:
-        if vault.owner_view(profile_id, token)["revision"] != view["revision"]:
-            raise HTTPException(409, "Journal changed while drafting. Prepare a new draft.")
-    return result
 
 
 @router.post("/{profile_id}/representation")

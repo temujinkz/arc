@@ -53,6 +53,13 @@ class CoverageTests(unittest.IsolatedAsyncioTestCase):
         self.evidence('mcp__firecrawl__firecrawl_scrape',{'url':'https://two.dev/'},{'markdown':'hello'})
         self.assertEqual(len(self.gate.pending()),3)
 
+    async def test_app_store_pages_are_shared_platforms_not_the_subjects_domain(self):
+        self.evidence('mcp__firecrawl__firecrawl_scrape',{'url':'https://apps.apple.com/pe/developer/someone/id123'},{'markdown':'app'})
+        self.evidence('mcp__firecrawl__firecrawl_scrape',{'url':'https://play.google.com/store/apps/developer?id=Someone'},{'markdown':'app'})
+        self.assertFalse([r for r in self.gate.pending() if r['match'].get('domain')])
+        self.evidence('mcp__firecrawl__firecrawl_scrape',{'url':'https://their-own-site.com/'},{'markdown':'hi'})
+        self.assertEqual({r['match']['domain'] for r in self.gate.pending() if r['match'].get('domain')},{'their-own-site.com'})
+
     async def test_options_wire_stop_hook_without_network(self):
         with patch('backend.orchestrator.mcp_registry',return_value=({},TOOLS)):
             options=build_options(self.pad,1)
