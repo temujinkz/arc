@@ -6,9 +6,10 @@ import { Brush } from "./Brush";
 import { useLive, liveId, slug, type LivePerson } from "./live";
 import { HalftoneLogo } from "./HalftoneLogo";
 import { Pipeline } from "./Pipeline";
+import { useDirectory, type Who } from "./directory";
 import { Night } from "./Night";
 import { scene } from "./scene";
-import { areaHue, dossier, kindHue, network, type GLink, type GNode, type Kind } from "./data";
+import { areaHue, dossier, kindHue, network, people as record, type GLink, type GNode, type Kind } from "./data";
 
 const legend: { kind: Kind; name: string; hint: string }[] = [
   { kind: "person", name: "Person", hint: "Who the profile is about" },
@@ -98,6 +99,13 @@ export function App() {
     answer: (p: LivePerson, prompt: Parameters<typeof live.answer>[1], labels: string[], note?: string) => { void live.answer(p, prompt, labels, note); },
     stop: (p: LivePerson) => { void live.stop(p); },
   }), [live, add]);
+
+  // Everyone the directory can be asked about: the record, and anyone found whose employer is known.
+  const who = useMemo<Who[]>(() => [
+    ...record.map((p) => ({ name: p.name, company: p.company })),
+    ...live.people.flatMap((p) => (p.profile?.orgs[0] ? [{ name: p.name, company: p.profile.orgs[0].label }] : [])),
+  ], [live.people]);
+  const dir = useDirectory(who);
 
   const graph = useMemo(() => withLive(live.people), [live.people]);
   // What gets drawn: companies and people. Role areas are shown by colour and the filter chips instead of extra nodes,
@@ -274,7 +282,7 @@ export function App() {
                 </div>
               )}
             </div>
-            <Profile id={selected} nodes={graph.nodes} links={graph.links} live={live.people} actions={actions} onSelect={select} onClose={() => select(null)} />
+            <Profile id={selected} nodes={graph.nodes} links={graph.links} live={live.people} actions={actions} dir={dir} onSelect={select} onClose={() => select(null)} />
           </div>
         </section>
 

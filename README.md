@@ -71,6 +71,14 @@ This value is public frontend configuration; provider credentials belong only in
 Sherlock, Maigret and theHarvester are optional. `scripts/install-osint-tools.sh` installs pinned versions under `.arc/tools` and links them into `.arc/bin`, which the backend checks first.
 `/api/tools` shows which are installed.
 
+## People directory
+
+The people directory looks people up in Apollo through [Monid](https://monid.ai). Add `MONID_API_KEY` to `.env`.
+- Matching a person to a role and employer is free and happens for everyone in the record.
+- A profile with work email costs $0.026, and a phone number about $0.23 more. Both need a confirmed click and are never repeated for the same person.
+- `MONID_MAX_SPEND_USD` (default `0.50`) caps what the app will spend, because Monid keys have no limit of their own.
+- Results are stored in `.arc/private/directory.sqlite3`, never in the graph. The routes only answer this machine.
+
 ## Use the workspace
 
 Choose **Evidence** or **Or start with free source lookups** to create an evidence case without invoking a model.
