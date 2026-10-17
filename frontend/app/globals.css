@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: #09090b;
+  color: #f4f4f5;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button, summary, select {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 3px;
+}
+
+@layer components {
+  .panel-heading {
+    @apply flex shrink-0 items-center gap-2 border-b border-zinc-800 bg-zinc-900/30 px-4 py-3 text-xs font-medium text-zinc-400;
+  }
+  .primary-button {
+    @apply shrink-0 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-zinc-950 transition-colors hover:bg-emerald-400 disabled:opacity-40;
+  }
+}
+
+.workspace-shell {
+  background: radial-gradient(ellipse at 80% 0%, rgba(45, 66, 84, .12), transparent 50%),
+    radial-gradient(ellipse at 10% 0%, rgba(16, 185, 129, .035), transparent 35%), #090b0e;
+}
+.glass-card {
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,255,255,.035), rgba(255,255,255,.012)), rgba(12,15,20,.8);
+  backdrop-filter: blur(20px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025), 0 8px 30px rgba(0,0,0,.08);
+}
+.tool-card {
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px;
+  background: rgba(255,255,255,.018);
+}
+.tool-active { border-color: rgba(52,211,153,.25); background: rgba(52,211,153,.025); }
+.eyebrow { font-size: 9px; text-transform: uppercase; letter-spacing: .13em; color: #71717a; }
+summary { list-style: none; }
+summary::-webkit-details-marker { display: none; }
+.activity-spin { animation: activity-spin 1.2s linear infinite; }
+@keyframes activity-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .activity-spin { animation: none; }
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0s !important; }
+}
+* { scrollbar-width: thin; scrollbar-color: #30343c transparent; }
