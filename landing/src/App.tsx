@@ -3,7 +3,7 @@ import { Graph } from "./Graph";
 import { Search } from "./Search";
 import { Profile } from "./Profile";
 import { Brush } from "./Brush";
-import { useLive, type LivePerson } from "./live";
+import { useLive, liveId, slug, type LivePerson } from "./live";
 import { HalftoneLogo } from "./HalftoneLogo";
 import { Pipeline } from "./Pipeline";
 import { Night } from "./Night";
@@ -25,55 +25,121 @@ function Mark({ kind, color }: { kind: Kind; color?: string }) {
   return <i className="glyph-mark" style={{ color: color ?? kindHue[kind] }} aria-hidden>{glyph[kind]}</i>;
 }
 
+// Each card describes one stage of the real pipeline in arc-engine. Checked against the backend code.
 const tech = [
-  ["Collect", "Searching a name starts an AI agent built on the Claude Agent SDK. It calls research tools over MCP: web and publication search, identity lookups, and LinkedIn and GitHub profiles. It can stop to ask a person a question, and every run has a spending limit.", "FastAPI, Claude Agent SDK, MCP"],
-  ["Keep the evidence", "Every result is saved with the time it was collected and a SHA-256 hash. Matching usernames do not prove two accounts are one person, and ten snapshots of the same page still count as one source.", "SQLite cache, SHA-256"],
-  ["Build the graph", "A second step turns the evidence into a graph, and the graph is checked before it is saved. Every node and link has to cite evidence, there is exactly one central person, and anything the AI infers has to be labelled as a guess.", "schema-checked, Neo4j"],
-  ["Draft, then commit", "While a search is running, new findings stream in as dashed drafts. Only the saved graph becomes a profile.", "server-sent events"],
-  ["Guesses stay separate", "Evidence is marked observed, unverified, supported, disputed or interpretation. Our own readings, like how fast someone builds, live in their own nodes with the limits written beside them.", "evidence states"],
+  ["Collect", "Searching a name starts an AI agent built on the Claude Agent SDK. It uses research tools over MCP for web search, LinkedIn and GitHub profiles and page reading. If several people fit the name, it stops and asks you which ones are you. Every run has a spending limit.", "FastAPI, Claude Agent SDK, MCP"],
+  ["Save the evidence", "Everything it finds is saved first, with the time it was seen and a SHA-256 hash of the source. From then on, claims can only quote exact passages from those saved copies.", "SQLite ledger, SHA-256"],
+  ["Check the claims", "A model picks up to three claims to test. Workers, which can run on Crusoe-hosted models, read only the saved passages and propose findings. A critic accepts or rejects each one, and a claim only counts as independently backed if a source outside the person's own accounts says so.", "workers, critic, support levels"],
+  ["Draw the graph", "The graph is built only from accepted findings, and every node and link points to a cited passage. It is checked against a schema, then saved to Neo4j. While a run is live, new findings stream in as dashed drafts.", "schema-checked, Neo4j, SSE"],
+  ["Keep guesses apart", "Readings of a person, like a five-part portrait and an optional council of four lenses (Jung, Diogenes, Nietzsche and The Builder), come from accepted evidence only. They carry their limits and never change the facts. The council runs only when you authorize it.", "portrait, council"],
   ["Private by default", "People can claim their own profile. Their private notes stay in a separate local vault, and what friends say about them is stored apart from the research.", "separate vault, separate peer claims"],
 ];
 
+const RED = "#cf3522";
+const REL: Record<string, string> = { WORKED_AT: "worked at", CONTRIBUTED_TO: "contributed to", COLLABORATED_ON: "collaborated on" };
+
+// The record plus everyone found by search. A finished search brings its companies and works into the graph,
+// and a company that is already in the record is reused, so a new person lands next to their colleagues.
+function withLive(live: LivePerson[]): { nodes: GNode[]; links: GLink[] } {
+  const nodes: GNode[] = [...network.nodes], links: GLink[] = [...network.links];
+  const companies = new Map(nodes.filter((n) => n.kind === "company").map((n) => [n.label.toLowerCase(), n.id]));
+  for (const p of live) {
+    if (p.status === "failed" || p.status === "cancelled") continue;
+    nodes.push({ id: p.id, label: p.name, kind: "person", hue: RED, draft: p.status !== "complete", sub: "Added by search" });
+    let extra = 0;
+    for (const n of p.commit?.nodes ?? []) {
+      if (extra >= 8) break;
+      const title = n.title ?? "";
+      if (!title || !["Organization", "Artifact", "DomainPillar"].includes(n.label)) continue;
+      const edge = p.commit?.edges?.find((e) => e.source_id === n.node_id || e.target_id === n.node_id);
+      if (n.label === "Organization") {
+        const have = companies.get(title.toLowerCase());
+        const id = have ?? `${p.id}:${n.node_id}`;
+        if (!have) { nodes.push({ id, label: title, kind: "company", sub: "Company" }); companies.set(title.toLowerCase(), id); }
+        links.push({ source: p.id, target: id, rel: REL[edge?.relationship ?? ""] ?? "linked to" });
+      } else {
+        const id = `${p.id}:${n.node_id}`;
+        nodes.push({ id, label: title, kind: n.label === "Artifact" ? "artifact" : "theme", hue: RED, sub: n.label === "Artifact" ? "Work" : "Theme" });
+        links.push({ source: p.id, target: id, rel: n.label === "Artifact" ? "built" : "works on" });
+      }
+      extra++;
+    }
+  }
+  return { nodes, links };
+}
+
 export function App() {
-  const [selected, setSelected] = useState<string | null>(null);
+  // Links like /?person=george-gulabyan&view=list open straight to that profile or view.
+  const params = new URLSearchParams(location.search);
+  const [selected, setSelected] = useState<string | null>(params.get("person"));
   const [node, setNode] = useState<string | null>("p");
+  const [view, setView] = useState<"graph" | "list">(params.get("view") === "list" || (params.get("view") !== "graph" && innerWidth < 700) ? "list" : "graph");
+  const [filter, setFilter] = useState<string | null>(null);
   const select = useCallback((id: string | null) => setSelected(id), []);
   const pickNode = useCallback((id: string | null) => setNode(id), []);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // People added from the search box. Each one is a live backend run until it finishes.
+  // Anyone found by search. They are loaded back from the backend on every visit.
   const live = useLive();
   const add = useCallback(async (name: string) => {
-    const id = "live-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    setSelected(id);
-    await live.start(name, live.people.some((p) => p.id === id) ? id : undefined);
+    setSelected(liveId(name));
+    await live.start(name, live.people.some((p) => p.id === liveId(name)) ? liveId(name) : undefined);
   }, [live]);
   const actions = useMemo(() => ({
     retry: (id: string, name: string) => { void live.start(name, id); },
-    answer: (p: LivePerson, requestId: string, selected: string[]) => { void live.answer(p.id, p.sessionId, requestId, selected); },
-    stop: (p: LivePerson) => { void live.stop(p.id, p.sessionId); },
+    answer: (p: LivePerson, prompt: Parameters<typeof live.answer>[1], labels: string[], note?: string) => { void live.answer(p, prompt, labels, note); },
+    stop: (p: LivePerson) => { void live.stop(p); },
   }), [live]);
 
-  // The record plus anyone being added. A failed search leaves no node behind to clutter the graph.
-  const graph = useMemo(() => {
-    const nodes: GNode[] = [...network.nodes], links: GLink[] = [...network.links];
-    for (const p of live.people) {
-      if (p.status === "failed" || p.status === "cancelled") continue;
-      nodes.push({ id: p.id, label: p.name, kind: "person", hue: "#cf3522", draft: p.status !== "complete", sub: "Added by search" });
-      if (p.status === "complete") p.themes.forEach((t, i) => {
-        const tid = `${p.id}-t${i}`;
-        nodes.push({ id: tid, label: t, kind: "theme", hue: "#cf3522", sub: "Theme" });
-        links.push({ source: p.id, target: tid, rel: "works on" });
-      });
+  const graph = useMemo(() => withLive(live.people), [live.people]);
+  // What gets drawn: companies and people. Role areas are shown by colour and the filter chips instead of extra nodes,
+  // which keeps the lines from crossing everywhere.
+  const drawn = useMemo(() => {
+    const areaIds = new Set(graph.nodes.filter((n) => n.id.startsWith("area-")).map((n) => n.id));
+    return { nodes: graph.nodes.filter((n) => !areaIds.has(n.id)), links: graph.links.filter((l) => !areaIds.has(l.target) && !areaIds.has(l.source)) };
+  }, [graph]);
+  const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph]);
+
+  // Role filter: people in the chosen area, plus that area and their companies. Anyone added by search always stays lit.
+  const highlight = useMemo(() => {
+    if (!filter) return null;
+    const people = new Set(graph.links.filter((l) => l.target === filter).map((l) => l.source));
+    const lit = new Set<string>([filter, ...people, ...live.people.map((p) => p.id)]);
+    for (const l of graph.links) if (people.has(l.source) && byId.get(l.target)?.kind === "company") lit.add(l.target);
+    return lit;
+  }, [filter, graph, byId, live.people]);
+
+  // List view: the same people grouped by company, so the record can be read without the canvas.
+  const groups = useMemo(() => {
+    const company = new Map<string, string>(), area = new Map<string, string>();
+    for (const l of graph.links) {
+      const t = byId.get(l.target);
+      if (t?.kind === "company") company.set(l.source, l.target);
+      if (t?.kind === "theme" && l.target.startsWith("area-")) area.set(l.source, l.target);
     }
-    return { nodes, links };
-  }, [live.people]);
+    const out = new Map<string, GNode[]>();
+    for (const n of graph.nodes) {
+      if (n.kind !== "person") continue;
+      const isLive = n.id.startsWith("live-");
+      if (filter && !isLive && area.get(n.id) !== filter) continue;
+      const key = company.get(n.id) ?? "added";
+      out.set(key, [...(out.get(key) ?? []), n]);
+    }
+    return [...out.entries()]
+      .map(([key, people]) => ({ key, name: key === "added" ? "Added by search" : byId.get(key)?.label ?? key, people: people.sort((a, b) => a.label.localeCompare(b.label)) }))
+      .sort((a, b) => (a.key === "added" ? -1 : b.key === "added" ? 1 : b.people.length - a.people.length || a.name.localeCompare(b.name)));
+  }, [graph, byId, filter]);
+
+  const counts = useMemo(() => ({
+    people: graph.nodes.filter((n) => n.kind === "person").length,
+    companies: graph.nodes.filter((n) => n.kind === "company").length,
+  }), [graph]);
+
   const focusSearch = () => {
     document.getElementById("record")?.scrollIntoView({ behavior: "smooth", block: "start" });
     setTimeout(() => searchRef.current?.focus({ preventScroll: true }), 450);
   };
 
-  // "/" jumps to the graph search.
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       const typing = document.activeElement?.tagName === "INPUT";
@@ -123,6 +189,7 @@ export function App() {
   }, []);
 
   const picked = dossier.nodes.find((n) => n.id === node);
+  const areas = Object.entries(areaHue).map(([name, hue]) => ({ id: "area-" + slug(name), name, hue }));
 
   return (
     <>
@@ -149,16 +216,57 @@ export function App() {
 
         <section id="record" className="wrap block">
           <div className="head" data-reveal>
-            <h2>Who works with who</h2>
+            <h2>People in the record</h2>
+            <p className="lede">Search for someone, or explore how the people already here connect. Click a name to read their profile. Anyone who is not here yet can be found live.</p>
           </div>
           <div className="card split" data-reveal>
             <div className="stage">
-              <Search ref={searchRef} stage onPick={select} onAdd={(n) => void add(n)} />
-              <Graph nodes={graph.nodes} links={graph.links} selected={selected} onSelect={select} distance={130} charge={-620} />
-              <p className="tip">Drag to explore, click a person, Esc to close</p>
-              <ul className="mini-legend" aria-hidden>{Object.entries(areaHue).map(([name, hue]) => <li key={name}><Mark kind="person" color={hue} />{name}</li>)}<li><Mark kind="company" color="#15140f" />Company</li></ul>
+              <Search ref={searchRef} stage nodes={graph.nodes} onPick={select} onAdd={(n) => void add(n)} />
+
+              <div className="viewbar" role="group" aria-label="Choose a view">
+                <button aria-pressed={view === "graph"} onClick={() => setView("graph")}>Graph</button>
+                <button aria-pressed={view === "list"} onClick={() => setView("list")}>List</button>
+              </div>
+
+              <div className="chips-row" role="group" aria-label="Filter by role">
+                <button aria-pressed={!filter} onClick={() => setFilter(null)}>Everyone</button>
+                {areas.map((a) => (
+                  <button key={a.id} aria-pressed={filter === a.id} onClick={() => setFilter(filter === a.id ? null : a.id)}>
+                    <i style={{ background: a.hue }} />{a.name}
+                  </button>
+                ))}
+              </div>
+
+              <div className={`graph-wrap${view === "list" ? " off" : ""}`} aria-hidden={view === "list"}>
+                <Graph nodes={drawn.nodes} links={drawn.links} selected={selected} onSelect={select} distance={82} charge={-420} hubs highlight={highlight} />
+                <p className="tip">Drag to explore, click a person, Esc to close</p>
+                <ul className="mini-legend" aria-hidden>{Object.entries(areaHue).map(([name, hue]) => <li key={name}><Mark kind="person" color={hue} />{name}</li>)}<li><Mark kind="company" color="#15140f" />Company</li></ul>
+              </div>
+
+              {view === "list" && (
+                <div className="list" aria-label="People in the record">
+                  <p className="count">{counts.people} people, {counts.companies} companies{filter ? `, showing ${areas.find((a) => a.id === filter)?.name}` : ""}</p>
+                  {groups.length === 0 && <p className="about muted">Nobody matches this filter yet.</p>}
+                  {groups.map((g) => (
+                    <section key={g.key}>
+                      <h4>{g.name}<span>{g.people.length}</span></h4>
+                      <ul>
+                        {g.people.map((p) => (
+                          <li key={p.id}>
+                            <button className={selected === p.id ? "on" : ""} onClick={() => select(p.id)}>
+                              <i className="dot" style={{ background: p.hue ?? "var(--faint)" }} />
+                              <span>{p.label}</span>
+                              <small>{p.sub?.split(",")[0]}</small>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              )}
             </div>
-            <Profile id={selected} onSelect={select} live={live.people} actions={actions} />
+            <Profile id={selected} nodes={graph.nodes} links={graph.links} live={live.people} actions={actions} onSelect={select} onClose={() => select(null)} />
           </div>
         </section>
 
@@ -183,7 +291,7 @@ export function App() {
         <section id="hood" className="wrap block">
           <div className="head" data-reveal>
             <h2>How a name becomes a graph</h2>
-            <p className="lede">When you search a name, Arc goes looking, writes down what it finds, and only then draws the graph. Here is the route it takes.</p>
+            <p className="lede">When you search a name, Arc goes looking, saves everything it finds, tests a few claims against the exact saved passages, and only then draws the graph. Here is the route it takes.</p>
           </div>
           <div className="pipe-card" data-reveal>
             <Pipeline />
@@ -203,7 +311,7 @@ export function App() {
             {[
               ["Only what is already public", "Arc reads what people have put on the open web. Private accounts and gated pages are off limits."],
               ["Guesses look like guesses", "Anything Arc works out for itself is drawn differently and comes with its limits, so it never passes as fact."],
-              ["You can ask to be removed", "Anyone can claim their profile, fix it, or ask for it to come down."],
+              ["You can dispute it", "Some of what Arc shows may not be verified. Anyone can dispute a line, ask for a change, or ask for a profile to come down."],
             ].map(([t, d]) => <div key={t} data-reveal><h3>{t}</h3><p>{d}</p></div>)}
           </div>
         </section>

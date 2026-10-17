@@ -20,19 +20,20 @@ const wires: [string, number][] = [
   ["M590 80 C590 118 386 112 386 148", 2],
   ["M590 80 V148", 1.6],
   ["M590 80 C590 118 794 112 794 148", 2],
-  ["M386 206 C386 250 85 244 85 288", 2.6],
-  ["M590 206 C590 256 115 238 115 288", 2.8],
-  ["M794 206 C794 260 145 236 145 288", 3],
-  ["M230 320 H286", 1.2],
-  ["M500 320 H556", 1.2],
-  ["M760 320 H816", 1.2],
+  ["M386 206 C386 250 55 244 55 288", 2.6],
+  ["M590 206 C590 256 85 238 85 288", 2.8],
+  ["M794 206 C794 260 115 236 115 288", 3],
+  ["M170 320 H208", 1],
+  ["M410 320 H448", 1],
+  ["M620 320 H658", 1],
+  ["M810 320 H848", 1],
 ];
 
 export function Pipeline() {
   return (
     <div className="pipe-scroll">
       <svg className="pipe-svg" data-lines viewBox="0 0 1000 380" role="img"
-        aria-label="A search goes to a FastAPI service and a Claude Agent SDK agent, which calls three research tools over MCP. Results go to an evidence scratchpad, then a graph architect, then Neo4j, and are served on this site.">
+        aria-label="A search goes to a FastAPI service and a Claude Agent SDK agent, which calls three kinds of research tool over MCP. Everything found goes into a hashed evidence ledger. Workers and a critic review claims against exact saved passages, then the graph is projected from accepted findings, saved to Neo4j and served on this site.">
         <defs>
           <marker id="head" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto">
             <path d="M2 2 L8 5 L2 8" className="arrow" />
@@ -48,16 +49,17 @@ export function Pipeline() {
 
         <Node i={0} x={0} y={20} w={190} title={'"Connor Guerrero"'} sub="search" />
         <Node i={1} x={240} y={20} w={170} title="FastAPI" sub="service" />
-        <Node i={2} x={460} y={20} w={260} title="Agent" sub="Claude Agent SDK" core />
+        <Node i={2} x={460} y={20} w={260} title="Agent" sub="Claude Agent SDK, asks you who" core />
 
-        <Node i={3} x={296} y={150} w={180} h={56} title="Web search" sub="web and publications" />
-        <Node i={4} x={500} y={150} w={180} h={56} title="Identity lookup" sub="usernames and accounts" />
-        <Node i={5} x={704} y={150} w={180} h={56} title="Profile scrape" sub="LinkedIn and GitHub" />
+        <Node i={3} x={296} y={150} w={180} h={56} title="Web search" sub="open web and journals" />
+        <Node i={4} x={500} y={150} w={180} h={56} title="Profile lookup" sub="LinkedIn and GitHub" />
+        <Node i={5} x={704} y={150} w={180} h={56} title="Page reader" sub="pages and posts" />
 
-        <Node i={6} x={0} y={290} w={230} title="Evidence scratchpad" sub="saved with a SHA-256 hash" />
-        <Node i={7} x={290} y={290} w={210} title="Graph architect" sub="schema-checked links" />
-        <Node i={8} x={560} y={290} w={200} title="Neo4j" sub="the saved graph" core />
-        <Node i={9} x={820} y={290} w={180} title="This site" sub="served as a profile" />
+        <Node i={6} x={0} y={290} w={170} title="Evidence ledger" sub="saved and hashed" />
+        <Node i={7} x={210} y={290} w={200} title="Claim review" sub="workers cite, critic decides" />
+        <Node i={8} x={450} y={290} w={170} title="Graph" sub="built from accepted work" />
+        <Node i={9} x={660} y={290} w={150} title="Neo4j" sub="the saved graph" core />
+        <Node i={10} x={850} y={290} w={150} title="This site" sub="served as a profile" />
 
         {/* Dots ride the wires once the diagram is on screen. */}
         <g className="dots">

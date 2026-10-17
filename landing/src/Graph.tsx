@@ -13,10 +13,53 @@ type Props = {
   onSelect: (id: string | null) => void;
   distance?: number;
   charge?: number;
+  hubs?: boolean; // company-centred layout: hubs push each other apart, people fan out around their hub
+  highlight?: Set<string> | null; // when set, everything outside it is dimmed (used by the role filter)
 };
 
 const INK = "#15140f", LINE = "#d6d4cc", FAINT = "#b3b1a5", PAPER = "#f6f6f4";
 const TAU = Math.PI * 2;
+
+
+// Company-centred layout. Each connected group gets a hub (its company, or its most connected node) with everyone
+// else spaced evenly around it, and the groups are packed apart. Positions are the same every time, so nothing tangles.
+function clusterAnchors(nodes: { id: string; kind: string }[], links: { source: string; target: string }[]) {
+  const parent = new Map(nodes.map((n) => [n.id, n.id]));
+  const find = (a: string): string => { while (parent.get(a) !== a) { parent.set(a, parent.get(parent.get(a)!)!); a = parent.get(a)!; } return a; };
+  for (const l of links) if (parent.has(l.source) && parent.has(l.target)) parent.set(find(l.source), find(l.target));
+  const comps = new Map<string, string[]>();
+  for (const n of nodes) comps.set(find(n.id), [...(comps.get(find(n.id)) ?? []), n.id]);
+  const kind = new Map(nodes.map((n) => [n.id, n.kind]));
+  const deg = new Map<string, number>();
+  for (const l of links) for (const id of [l.source, l.target]) deg.set(id, (deg.get(id) ?? 0) + 1);
+
+  const groups = [...comps.values()].map((ids) => {
+    const hub = ids.find((id) => kind.get(id) === "company") ?? ids.find((id) => kind.get(id) === "person") ?? [...ids].sort((a, b) => (deg.get(b) ?? 0) - (deg.get(a) ?? 0))[0];
+    const rest = ids.filter((id) => id !== hub);
+    const ring = rest.length === 0 ? 0 : rest.length === 1 ? 46 : Math.min(190, 44 + 15 * rest.length);
+    return { hub, rest, ring, r: ring + 34 };
+  }).sort((a, b) => b.r - a.r || a.hub.localeCompare(b.hub));
+
+  const placed: { x: number; y: number; r: number }[] = [];
+  const anchor = new Map<string, { x: number; y: number }>();
+  for (const g of groups) {
+    let x = 0, y = 0;
+    if (placed.length) {
+      for (let t = 1; t < 6000; t++) {
+        const a = t * 0.31, rad = 5 * Math.sqrt(t) * 6;
+        x = Math.cos(a) * rad * 1.7; y = Math.sin(a) * rad * 0.78;
+        if (placed.every((p) => Math.hypot(p.x - x, p.y - y) >= p.r + g.r + 6)) break;
+      }
+    }
+    placed.push({ x, y, r: g.r });
+    anchor.set(g.hub, { x, y });
+    g.rest.forEach((id, i) => {
+      const a = -Math.PI / 2 + (g.rest.length === 1 ? Math.PI / 3 : (2 * Math.PI * i) / g.rest.length);
+      anchor.set(id, { x: x + Math.cos(a) * g.ring, y: y + Math.sin(a) * g.ring });
+    });
+  }
+  return anchor;
+}
 
 // Shapes say what a node is, colour says which group it belongs to.
 function shape(ctx: CanvasRenderingContext2D, n: N, r: number, dim: boolean, on: boolean, k: number) {
@@ -51,7 +94,7 @@ function shape(ctx: CanvasRenderingContext2D, n: N, r: number, dim: boolean, on:
   if (on) { ctx.beginPath(); ctx.arc(x, y, r + 5, 0, TAU); ctx.lineWidth = 1 / k; ctx.globalAlpha = 0.35; ctx.stroke(); ctx.globalAlpha = 1; }
 }
 
-export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, distance = 120, charge = -300 }: Props) {
+export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, distance = 120, charge = -300, hubs = false, highlight = null }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
   const selRef = useRef(selected);
   selRef.current = selected;
@@ -62,6 +105,8 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
   // camera carry over, so a new person appears without the whole graph jumping.
   const cam = useRef<Cam>({ ready: false, touched: false, k: 1, tx: 0, ty: 0 });
   const pos = useRef(new Map<string, { x: number; y: number }>());
+  const hl = useRef<Set<string> | null>(null);
+  hl.current = highlight;
   const meta = useRef(new Map<string, GNode>());
   meta.current = new Map(inNodes.map((n) => [n.id, n]));
   const shapeKey = useMemo(() => inNodes.map((n) => n.id).join() + "|" + inLinks.map((l) => l.source + ">" + l.target).join(), [inNodes, inLinks]);
@@ -71,16 +116,17 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
   useEffect(() => {
     const canvas = ref.current!;
     const ctx = canvas.getContext("2d")!;
-    const font = (n: { kind: string }) => `${n.kind === "company" ? 600 : n.kind === "person" ? 450 : 400} 12px "Geist Variable", system-ui, sans-serif`;
+    const font = (n: { kind: string }) => `${n.kind === "company" ? 600 : n.kind === "person" ? 450 : 400} 13px "Geist Variable", system-ui, sans-serif`;
+    const anchors = hubs ? clusterAnchors(inNodes, inLinks) : null;
     const known = pos.current;
     const nodes: N[] = inNodes.map((n) => {
       ctx.font = font(n);
-      const p = known.get(n.id);
+      const p = known.get(n.id) ?? anchors?.get(n.id);
       return { ...n, w: ctx.measureText(n.label).width + 34, h: 50, ...(p ? { x: p.x, y: p.y } : {}) };
     });
     // A new node starts beside the first node it is linked to, so it settles in place.
     for (const n of nodes) {
-      if (known.has(n.id)) continue;
+      if (known.has(n.id) || anchors) continue;
       const l = inLinks.find((x) => (x.source === n.id && known.has(x.target)) || (x.target === n.id && known.has(x.source)));
       const near = l ? known.get(l.source === n.id ? l.target : l.source) : null;
       if (near) { n.x = near.x + (Math.random() - 0.5) * 40; n.y = near.y + (Math.random() - 0.5) * 40; }
@@ -109,16 +155,16 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
     };
 
     const sim = forceSimulation(nodes)
-      .force("link", forceLink<N, L>(links).id((d) => d.id).distance(distance).strength(0.4))
-      .force("charge", forceManyBody().strength(charge).distanceMax(520))
-      .force("round", forceCollide<N>(28).strength(0.9))
+      .force("link", forceLink<N, L>(links).id((d) => d.id).distance(distance).strength(hubs ? 0 : 0.85))
+      .force("charge", forceManyBody<N>().strength(hubs ? 0 : charge).distanceMax(420))
+      .force("round", forceCollide<N>(hubs ? 20 : 28).strength(0.9))
       .force("boxes", boxes)
       // The card is wider than it is tall, so the layout is pulled less sideways than up and down.
-      .force("x", forceX(0).strength(0.012))
-      .force("y", forceY(0).strength(0.06))
-      .velocityDecay(0.42)
+      .force("x", forceX<N>((n) => anchors?.get(n.id)?.x ?? 0).strength(hubs ? 0.3 : 0.012))
+      .force("y", forceY<N>((n) => anchors?.get(n.id)?.y ?? 0).strength(hubs ? 0.3 : 0.06))
+      .velocityDecay(hubs ? 0.5 : 0.42)
       .alphaDecay(0.02)
-      .alpha(rebuilding ? 0.35 : 1);
+      .alpha(rebuilding ? 0.35 : hubs ? 0.3 : 1);
 
     let { touched, k, tx, ty } = cam.current;
     let w = 0, h = 0, hover: N | null = null, drag: N | null = null, pan = false, moved = false;
@@ -142,8 +188,8 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
       if (touched || !w || !h) return;
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       for (const n of nodes) { x0 = Math.min(x0, n.x! - n.w / 2); x1 = Math.max(x1, n.x! + n.w / 2); y0 = Math.min(y0, n.y!); y1 = Math.max(y1, n.y! + 24); }
-      const nk = Math.min(1.5, Math.max(0.4, Math.min(w / (x1 - x0 + 120), (h - 120) / (y1 - y0 + 80))));
-      const nx = w / 2 - ((x0 + x1) / 2) * nk, ny = (h + 56) / 2 - ((y0 + y1) / 2) * nk;
+      const nk = Math.min(1.7, Math.max(0.4, Math.min(w / (x1 - x0 + 70), (h - 170) / (y1 - y0 + 50))));
+      const nx = w / 2 - ((x0 + x1) / 2) * nk, ny = (h + 100) / 2 - ((y0 + y1) / 2) * nk;
       const k0 = k, x = tx, y = ty, t0 = performance.now();
       const step = (now: number) => {
         if (touched) return;
@@ -160,11 +206,14 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
       return nodes.find((n) => Math.hypot((n.x ?? 0) - wx, (n.y ?? 0) - wy) < 16) ?? null;
     };
 
+    // Move the camera only when the selected node is out of sight, and keep it clear of the toolbar on top.
     focus.current = (id) => {
       const n = byId.get(id);
-      if (!n) return;
+      if (!n || !w) return;
+      const px = (n.x ?? 0) * k + tx, py = (n.y ?? 0) * k + ty;
+      if (px > 90 && px < w - 90 && py > 150 && py < h - 70) return;
       touched = true;
-      const sx = w / 2 - (n.x ?? 0) * k, sy = h / 2 - (n.y ?? 0) * k;
+      const sx = w / 2 - (n.x ?? 0) * k, sy = (h + 100) / 2 - (n.y ?? 0) * k;
       const x0 = tx, y0 = ty, t0 = performance.now();
       const step = (now: number) => {
         const e = Math.min(1, (now - t0) / 500), s = 1 - Math.pow(1 - e, 3);
@@ -194,8 +243,9 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
       links.forEach((l, i) => {
         const a = l.source as N, b = l.target as N;
         const on = focusId && (a.id === focusId || b.id === focusId);
+        const out = hl.current && !(hl.current.has(a.id) && hl.current.has(b.id));
         const { cx, cy } = curve(a, b, i);
-        ctx.strokeStyle = on ? INK : focusId ? "#e1e1da" : LINE;
+        ctx.strokeStyle = on ? INK : focusId || out ? "#e1e1da" : LINE;
         ctx.lineWidth = (on ? 1.25 : 1) / k;
         ctx.beginPath(); ctx.moveTo(a.x!, a.y!); ctx.quadraticCurveTo(cx, cy, b.x!, b.y!); ctx.stroke();
         if (on) {
@@ -212,7 +262,7 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
       for (const n of nodes) {
         const m = meta.current.get(n.id);
         if (m) { n.draft = m.draft; n.hue = m.hue; n.label = m.label; }
-        const dim = !!focusId && !active.has(n.id);
+        const dim = (!!focusId && !active.has(n.id)) || (!!hl.current && !hl.current.has(n.id));
         const on = n.id === sel || n === hover;
         const r = n.kind === "person" ? 5.5 : 5;
         shape(ctx, n, r + (on ? 1 : 0), dim, on, k);
@@ -279,7 +329,7 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
       canvas.removeEventListener("pointerleave", leave);
       canvas.removeEventListener("wheel", wheel);
     };
-  }, [shapeKey, distance, charge]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shapeKey, distance, charge, hubs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <canvas ref={ref} className="graph" />;
 }
