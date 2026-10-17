@@ -66,6 +66,11 @@ To retain the frontend API setting, place `NEXT_PUBLIC_API_URL=http://127.0.0.1:
 This value is public frontend configuration; provider credentials belong only in the backend `.env`.
 `NEXT_PUBLIC_API_URL` must be set when building the frontend.
 
+## Optional local OSINT tools
+
+Sherlock, Maigret and theHarvester are optional. `scripts/install-osint-tools.sh` installs pinned versions under `.arc/tools` and links them into `.arc/bin`, which the backend checks first.
+`/api/tools` shows which are installed.
+
 ## Use the workspace
 
 Choose **Evidence** or **Or start with free source lookups** to create an evidence case without invoking a model.
@@ -165,7 +170,9 @@ Owner cookies provide local access; global identity verification and account rec
 
 Journal edits invalidate approval of shareable context.
 Visitor responses use public facts and explicitly approved statements; raw journal notes do not enter public graphs, research history, or visitor prompts.
-Owners write their shareable statements by hand and approve each one. There is no local model.
+Optional local inference uses `ARC_LOCAL_AGENT_URL` and `ARC_LOCAL_MODEL` with no cloud fallback.
+The local model is optional. Research, the graph and the site work without it.
+When local inference is unavailable, the interface offers manual context or an approved static brief.
 
 Credentials, databases, local tools, verification receipts, and dependency directories are ignored by Git.
 Preserve original evidence collection times when reusing saved source results.

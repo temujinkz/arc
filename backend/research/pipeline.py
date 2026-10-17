@@ -262,7 +262,7 @@ async def run_workspace_research(run):
             # are retained in the case; extraction cannot cite outside this set.
             chosen = reader.initial_passages(run.target, limit=24, max_bytes=12000)
             if not chosen:
-                raise ValueError("No captured claim passages available")
+                raise ExtractionScopeError("No public page about this name could be checked, so nothing was added. The search results are saved.")
             transport = ModelOnlyTransport(
                 httpx.AsyncHTTPTransport(retries=0, trust_env=False)
             )

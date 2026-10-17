@@ -12,6 +12,7 @@ import { ChatComposer } from "./chat-composer";
 import { InvestigationSidebar, views, type WorkspaceView } from "./investigation-sidebar";
 import { PeerJudgments } from "./peer-judgments";
 import { ClaimJournal } from "./claim-journal";
+import { ProfileAgent } from "./profile-agent";
 import { EvidenceWorkbench } from "./evidence-workbench";
 import { EvidenceInspector } from "./evidence-inspector";
 import type { EvidenceSpanView } from "@/lib/investigation";
@@ -121,6 +122,7 @@ export function Workspace() {
         {view === "dossier" && state.committed && <div key={state.sessionId}>
           <Link href={`/u/${state.sessionId}`} className="mx-7 text-sm text-accent hover:underline">Open public profile ↗</Link>
           <ClaimJournal profileId={state.sessionId} />
+          <ProfileAgent profileId={state.sessionId} name={state.graph.nodes.find((item) => item.label === "Person")?.title || state.target} />
         </div>}
         {node && <div className="sticky bottom-3 z-20 mx-5 mb-4"><NodeInspector node={node} onEvidence={(id) => void openEvidence(id)} onClose={() => setSelected(null)} /></div>}
       </div></section>
