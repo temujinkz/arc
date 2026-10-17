@@ -22,6 +22,11 @@ export type GraphLink = { source: string; target: string; relationship: string; 
 export type GraphData = { nodes: GraphNode[]; links: GraphLink[] };
 export type PortraitSection = { section: string; title: string; analysis: string; evidence_ids: string[]; span_ids?: string[]; support_status?: string; limitations: string };
 export type EvidenceSpanView = { span: { id: string; text: string; pointer: string; start: number | null; end: number | null; url: string; observed_at: string; snapshot_hash: string; evidence_id: string; source_kind: string; origin_group: string }; claims: { statement: string; support: string; rationale: string }[]; unresolved: string[]; stop_reason: string | null };
+export type PersonaTake = {
+  persona_id: string; stance: "impressed" | "intrigued" | "skeptical" | "withholding";
+  headline: string; verdict: string; upside: string; tension: string;
+  question: string; limitations: string; evidence_ids: string[];
+};
 export type GraphPlan = {
   nodes: (Omit<GraphNode, "id"> & { node_id: string })[];
   edges: { source_id: string; target_id: string; relationship: string; reason: string }[];
@@ -84,6 +89,9 @@ export type ArcEvent = {
   cost_usd?: number | null;
   known_cost_usd?: number;
   usage_unknown?: boolean;
+  persona_ids?: string[];
+  snapshot?: string;
+  reading?: { takes: PersonaTake[] };
   cache_read_input_tokens?: number;
   cache_creation_input_tokens?: number;
 };
@@ -93,7 +101,7 @@ export type InvestigationState = {
   target: string;
   model: string;
   status: Status;
-  phase: "research" | "conversation" | "source";
+  phase: "research" | "conversation" | "source" | "judgment";
   collectionMode: "research" | "sources";
   connection: "connected" | "reconnecting";
   error: string;
@@ -126,6 +134,14 @@ export function applyEvent(state: InvestigationState, event: ArcEvent): Investig
   }
   const next = { ...state, logs };
   switch (event.type) {
+    case "judgment.started":
+      return { ...next, status: "running", phase: "judgment", error: "" };
+    case "judgment.complete":
+      return { ...next, status: "complete", phase: "judgment" };
+    case "judgment.failed":
+    case "judgment.cancelled":
+      return { ...next, status: event.type === "judgment.cancelled" ? "cancelled" : "failed", phase: "judgment",
+        error: event.error || event.text || "The council could not finish this reading." };
     case "case.ready":
       return { ...next, status: "complete", collectionMode: "sources" };
     case "source.started":

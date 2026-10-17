@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { PanelLeft, Square, X, LoaderCircle, Check, Pause, SlidersHorizontal, ArrowLeft } from "lucide-react";
+import { PanelLeft, Square, X, LoaderCircle, Check, Pause, SlidersHorizontal, ArrowLeft, ArrowRight } from "lucide-react";
 import { API_BASE, useInvestigation, type InvestigationSummary } from "@/lib/use-investigation";
 import { provider, toolResults } from "@/lib/presentation";
 import { EvidenceGraph } from "./evidence-graph";
@@ -17,8 +17,10 @@ import { EvidenceWorkbench } from "./evidence-workbench";
 import { EvidenceInspector } from "./evidence-inspector";
 import type { EvidenceSpanView } from "@/lib/investigation";
 
+import { JudgmentCouncil } from "./judgment-council";
+
 export function Workspace() {
-  const { state, start, send, answer, cancel, evidence, span, cachedProfile, history, historyError, refreshHistory, open, newInvestigation, createCase, collectSource } = useInvestigation();
+  const { state, start, send, answer, cancel, evidence, span, cachedProfile, history, historyError, refreshHistory, open, newInvestigation, createCase, collectSource, judge } = useInvestigation();
   const [view, setView] = useState<WorkspaceView>("conversation");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function Workspace() {
   const cachedReplay = state.logs.some(event => event.type === "research.mode" && event.mode === "cached_replay");
   const canFollowUp = !cachedReplay && state.logs.some((event) => event.type === "investigation.complete");
   const status = state.connection === "reconnecting" && busy ? "Reconnecting"
-    : state.prompts.length ? "Your answer needed" : busy ? state.phase === "conversation" ? "Replying" : state.phase === "source" ? "Collecting source" : "Researching"
+    : state.prompts.length ? "Your answer needed" : busy ? state.phase === "judgment" ? "Council deliberating" : state.phase === "conversation" ? "Replying" : state.phase === "source" ? "Collecting source" : "Researching"
     : state.status === "complete" ? state.collectionMode === "sources" ? "Evidence case" : "Complete" : state.status === "idle" ? "" : state.status;
   const showView = (value: WorkspaceView) => { setView(value); mobileSidebar.current?.close(); };
   const sidebarProps = { view, onView: showView, sessionId: state.sessionId, history, error: historyError,
@@ -100,6 +102,7 @@ export function Workspace() {
       <section key={`conversation-${state.sessionId || "new"}`} aria-label="Conversation" className={view === "conversation" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
         <ToolStream state={state} visible={view === "conversation"} answer={answer} onEvidence={(id) => void openEvidence(id)} />
         {cachedProfile && !busy && <div className="mx-auto w-full max-w-[800px] px-4 pb-2"><button onClick={() => { setSelected(null); void start(cachedProfile.target, false, cachedProfile.session_id); }} className="rounded-lg border border-emerald-500/20 px-4 py-2 text-xs text-accent hover:bg-emerald-500/5">Review saved {cachedProfile.target} evidence · no credits</button><p className="mt-2 text-[11px] text-muted">Runs the recursive review in this workspace. Open Dossier or Graph afterward and click a claim.</p></div>}
+        {hasSession && !busy && state.logs.some(event => !!event.evidence_id) && <button onClick={() => showView("judgments")} className="mx-auto mb-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-accent hover:bg-wash">Evidence collected. See what the Council thinks<ArrowRight size={15} /></button>}
         {!hasSession && <button onClick={() => showView("evidence")} className="mx-auto mb-4 rounded-lg px-4 py-2 text-sm text-accent hover:bg-wash">Or start with free source lookups</button>}
         {hasSession && state.collectionMode === "sources" && <p className="mx-5 mb-4 text-center text-sm text-muted">This is an evidence case. <button onClick={() => showView("evidence")} className="text-accent hover:underline">Open the evidence workbench</button> to collect and inspect sources.</p>}
         {state.collectionMode !== "sources" && <ChatComposer hasSession={hasSession} canFollowUp={canFollowUp} busy={busy} waiting={!!state.prompts.length}
@@ -108,6 +111,11 @@ export function Workspace() {
       <section aria-label="Evidence workbench" className={view === "evidence" ? "min-h-0 flex-1 overflow-y-auto" : "hidden"}>
         {view === "evidence" && <EvidenceWorkbench key={state.sessionId || "new-evidence-case"} state={state} onCreate={createCase} onCollect={collectSource}
           onEvidence={(id) => void openEvidence(id)} onSelectNode={(id) => { selectNode(id); showView("graph"); }} />}
+        {hasSession && !busy && state.logs.some(event => !!event.evidence_id) && <button onClick={() => showView("judgments")} className="mx-7 mb-6 inline-flex items-center gap-2 rounded-lg border border-line px-4 py-3 text-sm text-accent hover:bg-wash">Give the Council this evidence<ArrowRight size={15} /></button>}
+      </section>
+      <section aria-label="Persona judgments" className={view === "judgments" ? "min-h-0 flex-1 overflow-y-auto" : "hidden"}>
+        {view === "judgments" && <JudgmentCouncil key={state.sessionId || "new-council"} state={state} onJudge={judge}
+          onEvidence={(id) => void openEvidence(id)} onCollect={() => showView("evidence")} />}
       </section>
       <section aria-label="Dossier" className={view === "dossier" ? "relative min-h-0 flex-1 overflow-y-auto" : "hidden"}><div className="mx-auto max-w-5xl">
         <ReviewPanel state={state} onSelect={selectNode} onEvidence={(id) => void openEvidence(id)} onSpans={(ids) => void openSpans(ids)} />

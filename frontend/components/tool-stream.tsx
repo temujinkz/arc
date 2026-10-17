@@ -81,6 +81,9 @@ export function ToolStream({ state, visible, onEvidence, answer }: { state: Inve
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted">Start with a name and context, or a public profile. We’ll follow the sources together.</p></div>}
       <ResearchProgress logs={logs} />
       {logs.map((event, index) => {
+        if (event.type === "judgment.started") return <p key={index} className="py-2 text-sm text-muted">The council is reading the captured evidence.</p>;
+        if (event.type === "judgment.complete") return <p key={index} className="py-2 text-sm text-accent">Council reading saved. Open The Council to compare the takes.</p>;
+        if (event.type === "judgment.failed" || event.type === "judgment.cancelled") return <p key={index} role="alert" className="py-2 text-sm text-warning">{event.error || event.text}</p>;
         if (event.type === "case.ready" || event.type === "source.started" || event.type === "source.complete") return <p key={index} className="py-2 text-sm text-muted">{event.text}</p>;
         if (event.type === "source.failed" || event.type === "source.cancelled") return <p key={index} role="alert" className="py-2 text-sm text-warning">{event.error}</p>;
         if (event.type === "investigation.started" || event.type === "user.message") return <div key={index} className="flex justify-end py-4"><p className="max-w-[85%] whitespace-pre-wrap break-words rounded-xl rounded-tr-sm bg-wash px-4 py-3 text-sm leading-relaxed text-ink">{event.text || event.target}</p></div>;

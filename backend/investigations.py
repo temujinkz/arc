@@ -24,6 +24,7 @@ class Investigation:
     refresh_sources: bool = False
     collection_mode: str = "research"
     source_requests: dict[str, dict] = field(default_factory=dict)
+    judgment_requests: dict[str, dict] = field(default_factory=dict)
     store: RunStore | None = None
     saved_events: int = 0
     saved_evidence: int = 0
@@ -48,7 +49,7 @@ class Investigation:
     @classmethod
     def restore(cls, snapshot: dict, store: RunStore):
         run = cls(snapshot["target"], events=snapshot["events"], store=store)
-        for key in ("done", "budget", "chat_session_id", "chat_cost", "chat_evidence_ids", "chat_blocked", "chat_requests", "refresh_sources", "collection_mode", "source_requests", "cached_source_session_id", "research_case_path", "research_run_id"):
+        for key in ("done", "budget", "chat_session_id", "chat_cost", "chat_evidence_ids", "chat_blocked", "chat_requests", "refresh_sources", "collection_mode", "source_requests", "cached_source_session_id", "research_case_path", "research_run_id", "judgment_requests"):
             if key in snapshot:
                 setattr(run, key, snapshot[key])
         pad = InvestigationScratchpad(snapshot["session_id"], run.emit)
@@ -65,7 +66,7 @@ class Investigation:
         # Even a terminal event can precede the final metadata transaction.
         # Keep its result visible but block spending with uncertain accounting.
         last_operation = next((e["type"] for e in reversed(self.events)
-                               if e["type"].startswith(("conversation.", "investigation.", "source."))), "")
+                               if e["type"].startswith(("conversation.", "investigation.", "source.", "judgment."))), "")
         self.done = True
         if last_operation.startswith("source."):
             for request in self.source_requests.values():
@@ -74,6 +75,13 @@ class Investigation:
             self.scratchpad.emit({"type": "source.failed", "error": "Source collection was interrupted. No provider call was resumed or retried."})
             return
         self.chat_blocked = True
+        if last_operation.startswith("judgment."):
+            for request in self.judgment_requests.values():
+                if request["state"] == "pending":
+                    request["state"] = "interrupted"
+            self.scratchpad.emit({"type": "judgment.failed", "phase": "interrupted",
+                                  "error": "The council was interrupted. Saved readings are retained; no model call was resumed or retried."})
+            return
         if last_operation.endswith((".complete", ".failed", ".cancelled")):
             self.persist()
             return

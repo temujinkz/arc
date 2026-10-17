@@ -5,11 +5,11 @@ import json
 import os
 import re
 from datetime import datetime, timezone
-from urllib.parse import urlsplit
 from uuid import uuid4
 
 from backend.storage import connect
 from backend.tool_outputs import is_error, normalize_output, persisted_output_path
+from backend.source_urls import canonical_linkedin_profile_url
 
 CACHE_VERSION = 1
 CACHE_NOTE = "ARC_SOURCE_CACHE "
@@ -22,18 +22,11 @@ class CacheBlocked(RuntimeError):
 def canonical_inputs(tool: str, inputs: dict) -> dict:
     value = dict(inputs)
     if tool in {"scrape_linkedin_profile", "scrape_linkedin_posts"}:
-        raw = value.get("linkedin_url", "")
-        url = urlsplit(raw)
         # Normalize only accepted public profile URLs; never broaden the tool's input validation.
-        if (
-            url.scheme == "https"
-            and url.hostname in {"linkedin.com", "www.linkedin.com"}
-            and not url.username
-            and not url.password
-            and url.port in {None, 443}
-            and re.fullmatch(r"/in/[^/]+/?", url.path)
-        ):
-            value["linkedin_url"] = f"https://www.linkedin.com{url.path.rstrip('/')}"
+        try:
+            value["linkedin_url"] = canonical_linkedin_profile_url(value.get("linkedin_url", ""))
+        except ValueError:
+            pass  # Invalid inputs must reach validation, never alias a cached valid URL.
         if tool == "scrape_linkedin_posts":
             value.setdefault("max_posts", 10)
     elif tool in {"search_identity_exa", "search_web_you", "search_public_web", "search_publications_crossref"} and isinstance(value.get("query"), str):

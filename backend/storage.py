@@ -47,6 +47,7 @@ class RunStore:
             "cached_source_session_id", "research_case_path", "research_run_id",
             "collection_mode", "source_requests",
             "chat_evidence_ids",
+            "judgment_requests",
         )}
         state["human_decisions"] = pad.human_decisions
         created = run.events[0].get("timestamp", 0) if run.events else 0

@@ -41,6 +41,7 @@ export function toolResults(logs: ArcEvent[]) {
 export function activityLabel(state: InvestigationState) {
   if (state.connection === "reconnecting") return "Reconnecting to the event stream";
   if (state.prompts.length) return "Waiting for your answer";
+  if (state.phase === "judgment" && ["starting", "running"].includes(state.status)) return "The council is reading the captured evidence";
   if (state.status === "starting") return "Starting investigation";
   if (state.status !== "running") return "";
   if (state.phase === "conversation") return "Answering from collected evidence";
