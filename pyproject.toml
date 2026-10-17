@@ -1,0 +1,20 @@
+[project]
+name = "arc-engine"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "apify-client>=3.3.0",
+    "claude-agent-sdk>=0.2.166",
+    "ddgs>=9.16.0",
+    "exa-py>=2.25.0",
+    "fastapi>=0.143.0",
+    "fastmcp>=4.1.0",
+    "httpx>=0.28.1",
+    "neo4j>=6.4.0",
+    "neo4j-mcp-server>=1.6.0",
+    "pydantic>=2.14.1",
+    "starlette>=1.8.0",
+    "uvicorn>=0.54.0",
+]
