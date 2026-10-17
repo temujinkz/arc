@@ -78,7 +78,7 @@ function build(id: string, nodes: GNode[], links: GLink[], live: LivePerson[]): 
     return {
       eyebrow: "Added by search",
       title: l.name,
-      headline: working ? l.note : l.status === "complete" ? (company || "Company not found") : l.error || "The search was stopped.",
+      headline: working ? l.note : l.status === "complete" ? (company || `${pr?.claims.length ?? 0} claims, ${pr?.sources.length ?? 0} sources`) : l.error || "The search was stopped.",
       badge: liveBadge()!,
       facts: [["Company", company || "Not found"], ["Sources", String(pr?.sources.length ?? l.signals)], ["Claims checked", String(pr?.claims.length ?? 0)]],
       claims: pr?.claims ?? [],
