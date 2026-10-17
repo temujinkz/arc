@@ -248,7 +248,7 @@ export function Graph({ nodes: inNodes, links: inLinks, selected, onSelect, dist
         ctx.strokeStyle = on ? INK : focusId || out ? "#e1e1da" : LINE;
         ctx.lineWidth = (on ? 1.25 : 1) / k;
         ctx.beginPath(); ctx.moveTo(a.x!, a.y!); ctx.quadraticCurveTo(cx, cy, b.x!, b.y!); ctx.stroke();
-        if (on) {
+        if (on && Math.hypot(a.x! - b.x!, a.y! - b.y!) > 90) {
           const lx = 0.25 * a.x! + 0.5 * cx + 0.25 * b.x!, ly = 0.25 * a.y! + 0.5 * cy + 0.25 * b.y!;
           ctx.font = `500 10px "Geist Variable", system-ui, sans-serif`;
           const tw = ctx.measureText(l.rel).width;

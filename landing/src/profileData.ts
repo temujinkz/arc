@@ -3,19 +3,15 @@
 
 export type Tone = "good" | "mid" | "warn" | "bad" | "muted";
 
-export type ClaimView = { text: string; label: string; tone: Tone; why: string };
+export type ClaimView = { text: string; label: string; tone: Tone };
 export type SourceView = { label: string; url: string; kind: string };
 export type OrgView = { label: string; rel: string };
-export type ReadingView = { title: string; text: string; limits: string; thin: boolean };
 export type ProfileData = {
-  headline: string;
   verdict: { label: string; tone: Tone };
-  about: string;
   claims: ClaimView[];
   sources: SourceView[];
   orgs: OrgView[];
   works: { label: string; url: string }[];
-  readings: ReadingView[];
   themes: string[];
 };
 
@@ -54,13 +50,12 @@ export function host(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
-// "facebook.com/temujin.media": the site plus the first part of the path, so two pages on one site read differently.
+// "facebook.com/temujin.media/posts/..." : the site plus as much of the path as fits, so two pages on one site read differently.
 export function shortUrl(url: string): string {
   try {
     const u = new URL(url);
-    const path = u.pathname.split("/").filter(Boolean)[0];
-    const s = u.hostname.replace(/^www\./, "") + (path ? "/" + path : "");
-    return s.length > 34 ? s.slice(0, 33) + "…" : s;
+    const s = u.hostname.replace(/^www\./, "") + u.pathname.replace(/\/$/, "");
+    return s.length > 38 ? s.slice(0, 37) + "…" : s;
   } catch { return url; }
 }
 
@@ -70,7 +65,7 @@ export function profileFromGraph(g: RawGraph | null | undefined): ProfileData {
 
   const claims: ClaimView[] = nodes.filter((n) => n.label === "Claim").map((n) => {
     const level = SUPPORT[String(n.metadata?.support ?? "")] ?? BY_STATE[n.evidence_state ?? "unverified"] ?? BY_STATE.unverified;
-    return { text: n.title ?? "", label: level.label, tone: level.tone, why: n.summary ?? "" };
+    return { text: n.title ?? "", label: level.label, tone: level.tone };
   });
 
   const seen = new Set<string>();
@@ -90,14 +85,6 @@ export function profileFromGraph(g: RawGraph | null | undefined): ProfileData {
   const works = nodes.filter((n) => n.label === "Artifact" && n.title).map((n) => ({ label: n.title!, url: n.url ?? "" }));
   const themes = nodes.filter((n) => n.label === "DomainPillar" && n.title).map((n) => n.title!).slice(0, 5);
 
-  // Interpretations, kept apart from facts: the written portrait plus any judgment nodes.
-  const readings: ReadingView[] = [
-    ...(g?.portrait ?? []).map((p) => ({
-      title: p.title ?? "", text: p.analysis ?? "", limits: p.limitations ?? "", thin: p.support_status === "INSUFFICIENT_EVIDENCE",
-    })),
-    ...nodes.filter((n) => n.label === "AIJudgment").map((n) => ({ title: n.title ?? "", text: n.summary ?? "", limits: "This is an interpretation, not a fact.", thin: true })),
-  ].filter((r) => r.title || r.text);
-
   const independent = claims.filter((c) => c.tone === "good").length;
   const verdict: ProfileData["verdict"] = !claims.length
     ? { label: "Not enough public information yet", tone: "muted" }
@@ -107,11 +94,5 @@ export function profileFromGraph(g: RawGraph | null | undefined): ProfileData {
         ? { label: "Backed by their own work, not yet by others", tone: "mid" }
         : { label: "Not independently verified", tone: "warn" };
 
-  const person = nodes.find((n) => n.label === "Person");
-  return {
-    headline: claims.length ? `${claims.length} ${claims.length === 1 ? "claim" : "claims"} checked against ${sources.length} ${sources.length === 1 ? "source" : "sources"}` : "Not enough public information yet",
-    verdict,
-    about: g?.summary || person?.summary || "",
-    claims, sources, orgs, works, readings, themes,
-  };
+  return { verdict, claims, sources, orgs, works, themes };
 }

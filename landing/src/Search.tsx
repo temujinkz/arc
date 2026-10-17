@@ -46,7 +46,7 @@ export const Search = forwardRef<HTMLInputElement, Props>(function Search({ node
           aria-activedescendant={results[active] ? `${listId}-${active}` : undefined}
           aria-autocomplete="list"
           value={q}
-          placeholder={stage ? "Search a name, or find someone new" : "Search a name"}
+          placeholder="Search a name"
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 120)}
@@ -57,7 +57,6 @@ export const Search = forwardRef<HTMLInputElement, Props>(function Search({ node
             else if (e.key === "Escape") (e.target as HTMLInputElement).blur();
           }}
         />
-        {stage && <button className="search-go" onMouseDown={(e) => e.preventDefault()} onClick={search}>Search</button>}
         {stage && canFind && <button className="search-go find" onMouseDown={(e) => e.preventDefault()} onClick={find}>Find</button>}
         {!stage && <kbd>/</kbd>}
       </div>

@@ -27,12 +27,12 @@ function Mark({ kind, color }: { kind: Kind; color?: string }) {
 
 // Each card describes one stage of the real pipeline in arc-engine. Checked against the backend code.
 const tech = [
-  ["Collect", "Searching a name starts an AI agent built on the Claude Agent SDK. It uses research tools over MCP for web search, LinkedIn and GitHub profiles and page reading. If several people fit the name, it stops and asks you which ones are you. Every run has a spending limit.", "FastAPI, Claude Agent SDK, MCP"],
-  ["Save the evidence", "Everything it finds is saved first, with the time it was seen and a SHA-256 hash of the source. From then on, claims can only quote exact passages from those saved copies.", "SQLite ledger, SHA-256"],
-  ["Check the claims", "A model picks up to three claims to test. Workers, which can run on Crusoe-hosted models, read only the saved passages and propose findings. A critic accepts or rejects each one, and a claim only counts as independently backed if a source outside the person's own accounts says so.", "workers, critic, support levels"],
-  ["Draw the graph", "The graph is built only from accepted findings, and every node and link points to a cited passage. It is checked against a schema, then saved to Neo4j. While a run is live, new findings stream in as dashed drafts.", "schema-checked, Neo4j, SSE"],
-  ["Keep guesses apart", "Readings of a person, like a five-part portrait and an optional council of four lenses (Jung, Diogenes, Nietzsche and The Builder), come from accepted evidence only. They carry their limits and never change the facts. The council runs only when you authorize it.", "portrait, council"],
-  ["Private by default", "People can claim their own profile. Their private notes stay in a separate local vault, and what friends say about them is stored apart from the research.", "separate vault, separate peer claims"],
+  ["Collect", "An AI agent searches the web, LinkedIn and GitHub. If several people fit a name, it asks which ones are you. Every run has a spending limit.", "FastAPI, Claude Agent SDK, MCP"],
+  ["Save the evidence", "Every source is saved with its time and a SHA-256 hash. Claims can only quote exact passages from the saved copies.", "SQLite ledger, SHA-256"],
+  ["Check the claims", "A model picks up to three claims. Workers read the saved passages and propose findings, and a critic accepts or rejects each one. A claim counts as independently backed only if a source outside the person's own accounts says so.", "workers, critic, support levels"],
+  ["Draw the graph", "The graph is built only from accepted findings. Every node and link cites a passage. It is schema-checked, then saved to Neo4j.", "schema-checked, Neo4j"],
+  ["Keep opinions apart", "Opinions, like the optional four-lens council, stay separate from the facts and run only when you authorize them.", "council, off by default"],
+  ["Private by default", "Claimed profiles keep private notes in a local vault, apart from the public graph.", "separate vault"],
 ];
 
 const RED = "#cf3522";
@@ -43,9 +43,15 @@ const REL: Record<string, string> = { WORKED_AT: "worked at", CONTRIBUTED_TO: "c
 function withLive(live: LivePerson[]): { nodes: GNode[]; links: GLink[] } {
   const nodes: GNode[] = [...network.nodes], links: GLink[] = [...network.links];
   const companies = new Map(nodes.filter((n) => n.kind === "company").map((n) => [n.label.toLowerCase(), n.id]));
+  const inRecord = new Map(nodes.map((n, i) => [n.label.toLowerCase(), i]));
   for (const p of live) {
     if (p.status === "failed" || p.status === "cancelled") continue;
-    nodes.push({ id: p.id, label: p.name, kind: "person", hue: RED, draft: p.status !== "complete", sub: "Added by search" });
+    const draft = p.status !== "complete";
+    // Someone already in the record keeps their node and colour. Their lookup results attach to it.
+    const at = inRecord.get(p.name.toLowerCase());
+    let pid = p.id;
+    if (at !== undefined && nodes[at].kind === "person") { pid = nodes[at].id; nodes[at] = { ...nodes[at], draft }; }
+    else nodes.push({ id: p.id, label: p.name, kind: "person", hue: RED, draft, sub: "Added by search" });
     let extra = 0;
     for (const n of p.commit?.nodes ?? []) {
       if (extra >= 8) break;
@@ -56,11 +62,11 @@ function withLive(live: LivePerson[]): { nodes: GNode[]; links: GLink[] } {
         const have = companies.get(title.toLowerCase());
         const id = have ?? `${p.id}:${n.node_id}`;
         if (!have) { nodes.push({ id, label: title, kind: "company", sub: "Company" }); companies.set(title.toLowerCase(), id); }
-        links.push({ source: p.id, target: id, rel: REL[edge?.relationship ?? ""] ?? "linked to" });
+        if (!links.some((l) => l.source === pid && l.target === id)) links.push({ source: pid, target: id, rel: REL[edge?.relationship ?? ""] ?? "linked to" });
       } else {
         const id = `${p.id}:${n.node_id}`;
         nodes.push({ id, label: title, kind: n.label === "Artifact" ? "artifact" : "theme", hue: RED, sub: n.label === "Artifact" ? "Work" : "Theme" });
-        links.push({ source: p.id, target: id, rel: n.label === "Artifact" ? "built" : "works on" });
+        links.push({ source: pid, target: id, rel: n.label === "Artifact" ? "built" : "works on" });
       }
       extra++;
     }
@@ -82,14 +88,16 @@ export function App() {
   // Anyone found by search. They are loaded back from the backend on every visit.
   const live = useLive();
   const add = useCallback(async (name: string) => {
-    setSelected(liveId(name));
-    await live.start(name, live.people.some((p) => p.id === liveId(name)) ? liveId(name) : undefined);
+    const known = network.nodes.find((n) => n.kind === "person" && n.label.toLowerCase() === name.toLowerCase());
+    setSelected(known?.id ?? liveId(name));
+    await live.start(name);
   }, [live]);
   const actions = useMemo(() => ({
-    retry: (id: string, name: string) => { void live.start(name, id); },
+    lookup: (name: string) => { void add(name); },
+    retry: (_id: string, name: string) => { void live.start(name); },
     answer: (p: LivePerson, prompt: Parameters<typeof live.answer>[1], labels: string[], note?: string) => { void live.answer(p, prompt, labels, note); },
     stop: (p: LivePerson) => { void live.stop(p); },
-  }), [live]);
+  }), [live, add]);
 
   const graph = useMemo(() => withLive(live.people), [live.people]);
   // What gets drawn: companies and people. Role areas are shown by colour and the filter chips instead of extra nodes,
@@ -217,7 +225,7 @@ export function App() {
         <section id="record" className="wrap block">
           <div className="head" data-reveal>
             <h2>People in the record</h2>
-            <p className="lede">Search for someone, or explore how the people already here connect. Click a name to read their profile. Anyone who is not here yet can be found live.</p>
+            <p className="lede">Click a name to see their profile. To add someone new, type their full name and press Find.</p>
           </div>
           <div className="card split" data-reveal>
             <div className="stage">
@@ -273,7 +281,7 @@ export function App() {
         <section id="profile" className="wrap block">
           <div className="head" data-reveal>
             <h2>Every claim points back to where it came from</h2>
-            <p className="lede">Every person gets their own small graph. Things we found sit next to the page they came from, and anything we worked out ourselves is drawn dashed so you can tell the difference. This example only holds what the team has told us so far.</p>
+            <p className="lede">Each person gets a small graph. Facts sit next to their source, and our own guesses are dashed. This example only holds what the team told us.</p>
           </div>
           <div className="card" data-reveal>
             <div className="stage tall">
@@ -291,7 +299,7 @@ export function App() {
         <section id="hood" className="wrap block">
           <div className="head" data-reveal>
             <h2>How a name becomes a graph</h2>
-            <p className="lede">When you search a name, Arc goes looking, saves everything it finds, tests a few claims against the exact saved passages, and only then draws the graph. Here is the route it takes.</p>
+            <p className="lede">What happens after you press Find.</p>
           </div>
           <div className="pipe-card" data-reveal>
             <Pipeline />
@@ -309,9 +317,9 @@ export function App() {
           </div>
           <div className="cols">
             {[
-              ["Only what is already public", "Arc reads what people have put on the open web. Private accounts and gated pages are off limits."],
-              ["Guesses look like guesses", "Anything Arc works out for itself is drawn differently and comes with its limits, so it never passes as fact."],
-              ["You can dispute it", "Some of what Arc shows may not be verified. Anyone can dispute a line, ask for a change, or ask for a profile to come down."],
+              ["Only what is public", "Arc reads the open web. Private accounts and gated pages are off limits."],
+              ["Guesses look like guesses", "Anything Arc infers is drawn differently, so it never passes as fact."],
+              ["You can dispute it", "Some of this may not be verified. Anyone can dispute a line, ask for a change, or ask for a profile to come down."],
             ].map(([t, d]) => <div key={t} data-reveal><h3>{t}</h3><p>{d}</p></div>)}
           </div>
         </section>

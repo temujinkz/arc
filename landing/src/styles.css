@@ -210,6 +210,7 @@ h3 { font-size: 18px; line-height: 1.25; letter-spacing: -0.018em; }
 .search-go { min-width: 78px; height: 38px; padding: 0 16px; border-radius: 12px; background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 450; transition: transform 160ms var(--ease); }
 .search-go:active { transform: scale(0.97); }
 .search-go.find { background: var(--accent); color: #fff; }
+.search.in-stage { right: 150px; }
 .search li button.add small { color: var(--accent); }
 
 /* Live profile while a new name is being researched */

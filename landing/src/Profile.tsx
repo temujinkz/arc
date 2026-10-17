@@ -1,12 +1,13 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { people, type GLink, type GNode } from "./data";
 import type { LivePerson, LivePrompt } from "./live";
 import type { Tone } from "./profileData";
 
-// One card layout for everything you can click: a person, a company, a role area or someone found live.
-// Same order every time: header and status, facts, about, evidence, connections, footer.
+// One card layout for everything you can click: a person, a company, a role area or someone found by search.
+// Same order every time: header and status, facts, claims, sources, connections, footer. Data only, no prose.
 
 type Actions = {
+  lookup: (name: string) => void;
   retry: (id: string, name: string) => void;
   answer: (p: LivePerson, prompt: LivePrompt, labels: string[], note?: string) => void;
   stop: (p: LivePerson) => void;
@@ -18,31 +19,16 @@ type Card = {
   headline: string;
   badge: { label: string; tone: Tone | "live" };
   facts: [string, ReactNode][];
-  about: string;
-  claims?: { text: string; label: string; tone: Tone; why: string }[];
-  readings?: { title: string; text: string; limits: string; thin: boolean }[];
+  claims: { text: string; label: string; tone: Tone }[];
   sources: { label: string; url?: string; note?: string }[];
   rows: Row[];
-  rowsTitle: string;
   live?: LivePerson;
+  lookup?: string; // name to look up, when this person has not been researched yet
 };
 
 function Swatch({ node }: { node?: GNode }) {
   if (!node) return null;
   return node.kind === "company" ? <i className="dot sq" /> : <i className="dot" style={{ background: node.hue ?? "var(--faint)" }} />;
-}
-
-function Clamp({ text }: { text: string }) {
-  const [more, setMore] = useState(false);
-  useEffect(() => setMore(false), [text]);
-  if (!text) return <p className="about muted">Nothing written about them yet.</p>;
-  const long = text.length > 220;
-  return (
-    <>
-      <p className={`about${long && !more ? " clamp" : ""}`}>{text}</p>
-      {long && <button className="more" onClick={() => setMore(!more)}>{more ? "Show less" : "Read more"}</button>}
-    </>
-  );
 }
 
 // "Which of these are you?" A checklist where one, some or all can be chosen.
@@ -73,37 +59,36 @@ function Ask({ p, prompt, onAnswer }: { p: LivePerson; prompt: LivePrompt; onAns
 function build(id: string, nodes: GNode[], links: GLink[], live: LivePerson[]): Card | null {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const node = byId.get(id);
-  const lp = live.find((x) => x.id === id);
+  // Someone in the record who has been looked up is matched by name, so their card gains the results.
+  const lp = live.find((x) => x.id === id) ?? (node ? live.find((x) => x.name.toLowerCase() === node.label.toLowerCase()) : undefined);
   if (!node && !lp) return null;
   const nbrs = (nid: string) => links.filter((l) => l.source === nid || l.target === nid).map((l) => ({ id: l.source === nid ? l.target : l.source, rel: l.rel }));
   const direct = nbrs(id).filter((n, i, a) => a.findIndex((x) => x.id === n.id) === i);
   const rows: Row[] = direct.filter((d) => byId.has(d.id)).map((d) => ({ id: d.id, label: byId.get(d.id)!.label, note: d.rel }));
+  const working = !!lp && (lp.status === "starting" || lp.status === "running");
+  const pr = lp?.profile;
 
-  if (lp) {
-    const pr = lp.profile;
-    const working = lp.status === "starting" || lp.status === "running";
-    const coworkers = direct.map((d) => byId.get(d.id)).filter((n): n is GNode => n?.kind === "company")
-      .flatMap((c) => nbrs(c.id).filter((x) => x.id !== id && byId.get(x.id)?.kind === "person").map((x) => ({ id: x.id, label: byId.get(x.id)!.label, note: `also at ${c.label}` })));
+  const liveBadge = (): Card["badge"] | null => !lp ? null : working ? { label: "Researching", tone: "live" } : lp.status === "complete" ? (pr?.verdict ?? { label: "Done", tone: "muted" }) : { label: "Not added", tone: "bad" };
+  const found = (pr?.sources ?? []).map((s) => ({ label: s.label, url: s.url, note: s.kind }));
+
+  // Someone who only exists because of a search.
+  if (!node || (lp && lp.id === id && !people.some((x) => x.id === id))) {
+    const l = lp!;
+    const company = pr?.orgs.map((o) => o.label).join(", ");
     return {
-      eyebrow: working ? "Looking them up" : lp.status === "complete" ? "Added by search" : "Not added",
-      title: lp.name,
-      headline: working ? lp.note : lp.status === "complete" ? (pr?.headline ?? "") : lp.error || "The search was stopped.",
-      badge: working ? { label: "Researching", tone: "live" } : lp.status === "complete" ? (pr?.verdict ?? { label: "Done", tone: "muted" }) : { label: "Not added", tone: "bad" },
-      facts: [
-        ["Status", working ? "Researching now" : lp.status === "complete" ? "Added to the record" : "Stopped"],
-        ["Sources", pr ? String(pr.sources.length) : lp.signals ? String(lp.signals) : "None yet"],
-        ["Claims checked", pr ? String(pr.claims.length) : "None yet"],
-      ],
-      about: pr?.about ?? "",
-      claims: pr?.claims, readings: pr?.readings,
-      sources: (pr?.sources ?? []).map((s) => ({ label: s.label, url: s.url, note: s.kind })),
-      rows: [...rows, ...coworkers].filter((r, i, a) => a.findIndex((x) => x.id === r.id) === i),
-      rowsTitle: "Connected to",
-      live: lp,
+      eyebrow: "Added by search",
+      title: l.name,
+      headline: working ? l.note : l.status === "complete" ? (company || "Company not found") : l.error || "The search was stopped.",
+      badge: liveBadge()!,
+      facts: [["Company", company || "Not found"], ["Sources", String(pr?.sources.length ?? l.signals)], ["Claims checked", String(pr?.claims.length ?? 0)]],
+      claims: pr?.claims ?? [],
+      sources: found,
+      rows,
+      live: l,
     };
   }
 
-  const n = node!;
+  const n = node;
   if (n.kind === "person") {
     const p = people.find((x) => x.id === n.id);
     const company = direct.map((d) => byId.get(d.id)).find((x) => x?.kind === "company");
@@ -111,33 +96,28 @@ function build(id: string, nodes: GNode[], links: GLink[], live: LivePerson[]): 
     return {
       eyebrow: company?.label ?? "Person",
       title: n.label,
-      headline: p ? `${p.role} at ${p.company}` : (n.sub ?? ""),
-      badge: { label: "From one source", tone: "mid" },
+      headline: p ? `${p.role}, ${p.company}` : (n.sub ?? ""),
+      badge: liveBadge() ?? { label: "From one source", tone: "mid" },
       facts: [["Role", p?.role ?? "Not known"], ["Company", p?.company ?? "Not known"], ["Area", p?.area ?? "Not known"]],
-      about: p ? `${p.role} at ${p.company}. One of the first round judges.` : "",
-      sources: [{ label: "First round judges slide", note: "the only source so far" }],
+      claims: pr?.claims ?? [],
+      sources: [{ label: "First round judges slide", note: "event slide" }, ...found],
       rows: [...rows, ...colleagues],
-      rowsTitle: "Connected to",
+      live: lp,
+      lookup: lp ? undefined : n.label,
     };
   }
 
   const members = direct.map((d) => byId.get(d.id)).filter((x): x is GNode => x?.kind === "person");
-  const side = direct.map((d) => byId.get(d.id)).filter((x): x is GNode => !!x && x.kind !== "person");
   const isCompany = n.kind === "company";
   return {
     eyebrow: isCompany ? "Company" : "Role area",
     title: n.label,
-    headline: `${members.length} ${members.length === 1 ? "person" : "people"} ${isCompany ? "work here" : "in this area"}`,
-    badge: { label: "Summary of the record", tone: "muted" },
-    facts: [
-      ["People", String(members.length)],
-      [isCompany ? "Areas" : "Companies", String(new Set(members.flatMap((m) => nbrs(m.id).map((x) => byId.get(x.id)).filter((x) => x && (isCompany ? x.kind === "theme" : x.kind === "company")).map((x) => x!.id))).size || side.length)],
-      ["Source", "First round judges slide"],
-    ],
-    about: `${n.label} appears in the record through ${members.length} ${members.length === 1 ? "person" : "people"}. Click a name to read their profile.`,
-    sources: [{ label: "First round judges slide", note: "the only source so far" }],
+    headline: `${members.length} ${members.length === 1 ? "person" : "people"}`,
+    badge: { label: "From the record", tone: "muted" },
+    facts: [["People", String(members.length)], ["Source", "Judges slide"]],
+    claims: [],
+    sources: [],
     rows: members.map((m) => ({ id: m.id, label: m.label, note: m.sub?.split(",")[0] ?? "" })),
-    rowsTitle: "People",
   };
 }
 
@@ -152,14 +132,13 @@ export function Profile({ id, nodes, links, live, actions, onSelect, onClose }: 
       <aside className="pcard empty" aria-live="polite">
         <p className="eyebrow">Profile</p>
         <h3>Pick someone</h3>
-        <p className="about muted">Click a name on the graph or in the list, or search above. Their profile appears here.</p>
-        <p className="fine">Press Esc to close a profile.</p>
+        <p className="fine">Click a name on the graph or in the list. Esc closes a profile.</p>
       </aside>
     );
   }
 
   const lp = card.live;
-  const working = lp && (lp.status === "starting" || lp.status === "running");
+  const working = !!lp && (lp.status === "starting" || lp.status === "running");
   return (
     <aside className="pcard" key={id} aria-live="polite">
       <header>
@@ -174,34 +153,24 @@ export function Profile({ id, nodes, links, live, actions, onSelect, onClose }: 
       {lp?.prompts.map((q) => <Ask key={q.request_id} p={lp} prompt={q} onAnswer={actions.answer} />)}
       {lp?.error && lp.status !== "failed" && <p className="warnline">{lp.error}</p>}
 
-      <section><h4>About</h4><Clamp text={card.about} /></section>
-
-      {card.claims && card.claims.length > 0 && (
-        <section><h4>What we checked</h4>
+      {card.claims.length > 0 && (
+        <section><h4>Claims checked</h4>
           <ul className="claims">{card.claims.map((c, i) => (
-            <li key={i}><p>{c.text}</p><span className={`badge ${c.tone}`}>{c.label}</span>{c.why && <small>{c.why}</small>}</li>
+            <li key={i}><p>{c.text}</p><span className={`badge ${c.tone}`}>{c.label}</span></li>
           ))}</ul>
         </section>
       )}
 
-      {card.readings && card.readings.length > 0 && (
-        <section><h4>Our reading</h4><p className="fine">Interpretation, not fact. Each one lists its limits.</p>
-          {card.readings.map((r, i) => (
-            <details key={i} className={r.thin ? "thin" : ""}><summary>{r.title}</summary><p>{r.text}</p>{r.limits && <p className="limits">Limits: {r.limits}</p>}</details>
-          ))}
-        </section>
-      )}
-
-      <section><h4>Evidence</h4>
-        {card.sources.length ? (
+      {card.sources.length > 0 && (
+        <section><h4>Sources</h4>
           <ul className="srcs">{card.sources.map((s, i) => (
             <li key={i}>{s.url ? <a href={s.url} target="_blank" rel="noreferrer noopener">{s.label}</a> : <span>{s.label}</span>}{s.note && <small>{s.note}</small>}</li>
           ))}</ul>
-        ) : <p className="about muted">{working ? "Sources show up here as they are found." : "No sources yet."}</p>}
-      </section>
+        </section>
+      )}
 
       {card.rows.length > 0 && (
-        <section><h4>{card.rowsTitle}</h4>
+        <section><h4>Connected to</h4>
           <ul className="conns">{card.rows.map((r) => (
             <li key={r.id}><button onClick={() => onSelect(r.id)}><span><Swatch node={byId.get(r.id)} />{r.label}</span><small>{r.note}</small></button></li>
           ))}</ul>
@@ -209,10 +178,11 @@ export function Profile({ id, nodes, links, live, actions, onSelect, onClose }: 
       )}
 
       <footer>
+        {card.lookup && <button className="ghost" onClick={() => actions.lookup(card.lookup!)}>Look up public sources</button>}
         {lp && working && lp.sessionId && <button className="ghost" onClick={() => actions.stop(lp)}>Stop</button>}
         {lp && (lp.status === "failed" || lp.status === "cancelled") && <button className="ghost" onClick={() => actions.retry(lp.id, lp.name)}>Try again</button>}
-        <p className="fine">Some of this may not be verified.</p>
         <a className="dispute" href="#principles">Dispute or ask for a change</a>
+        <p className="fine">Some of this may not be verified.</p>
       </footer>
     </aside>
   );
