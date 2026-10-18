@@ -227,7 +227,7 @@ export function App() {
       <main id="top">
         <section className="wrap hero">
           <HalftoneLogo />
-          <h1 data-reveal>A shared source of truth for <span className="grad">people</span></h1>
+          <h1 data-reveal>The <span className="grad">truth</span> layer for people, built for agents</h1>
         </section>
 
         <section id="record" className="wrap block">
@@ -338,7 +338,7 @@ export function App() {
         </section>
       </main>
 
-      <footer className="wrap foot"><span className="brand"><span className="mk" />Arc</span><span>A shared source of truth for people.</span></footer>
+      <footer className="wrap foot"><span className="brand"><span className="mk" />Arc</span><span>The truth layer for people, built for agents.</span></footer>
     </>
   );
 }
