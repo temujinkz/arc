@@ -227,7 +227,7 @@ export function App() {
       <main id="top">
         <section className="wrap hero">
           <HalftoneLogo />
-          <h1 data-reveal>A public encyclopedia for <span className="grad">everyone</span>, not only the famous</h1>
+          <h1 data-reveal>A shared source of truth for <span className="grad">people</span></h1>
         </section>
 
         <section id="record" className="wrap block">
@@ -338,7 +338,7 @@ export function App() {
         </section>
       </main>
 
-      <footer className="wrap foot"><span className="brand"><span className="mk" />Arc</span><span>A public record for everyone.</span></footer>
+      <footer className="wrap foot"><span className="brand"><span className="mk" />Arc</span><span>A shared source of truth for people.</span></footer>
     </>
   );
 }
