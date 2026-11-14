@@ -17,6 +17,17 @@ The application combines a FastAPI backend, a Next.js frontend, SQLite history a
 Source records and model assessments remain separate.
 Matching handles do not establish identity, and repeated snapshots of the same source do not count as independent corroboration.
 
+## Screenshots
+
+Captured from the running landing site (`landing/`) using the sample data bundled in the repository.
+
+![Hero](docs/screenshots/1-arc-01-hero.png)
+![People in the record](docs/screenshots/7-arc-02-people-graph.png)
+![Every claim points back to its source](docs/screenshots/3-arc-03-claims-graph.png)
+![Node types, dark section](docs/screenshots/4-arc-04-node-types-dark.png)
+![How a name becomes a graph](docs/screenshots/5-arc-05-pipeline-dark.png)
+![A record people can check and correct](docs/screenshots/6-arc-06-principles-light.png)
+
 ## Requirements
 
 - Python 3.13 or newer and [uv](https://docs.astral.sh/uv/).
@@ -90,7 +101,7 @@ The adapter modules describe accepted executable paths and report formats.
 
 The **Conversation** workflow creates a real provider-backed investigation.
 Configure a positive `CLAUDE_MAX_BUDGET_USD`, the required Neo4j settings, and the selected provider credentials before starting one.
-The configured investigation allowance includes recorded Claude and optional Crusoe model usage and follow-ups; it is not a prepaid hard cap and excludes source-provider charges.
+The configured investigation allowance includes recorded Claude model usage and follow-ups; it is not a prepaid hard cap and excludes source-provider charges.
 `APIFY_MAX_TOTAL_CHARGE_USD` controls actor event charges and does not cover separate platform or storage charges.
 Use the configured model selection and per-role overrides rather than changing models implicitly.
 
@@ -98,7 +109,7 @@ Completed runs replay their saved events without launching another investigation
 Interrupted or unknown provider operations are not automatically resumed or retried.
 A fresh source snapshot requires an explicit request.
 
-## Recursive research and Crusoe workers
+## Recursive research
 
 The normal Investigate action collects sources through the Claude Agent SDK,
 then extracts focused claims into a SQLite case. Workers propose findings with
@@ -108,51 +119,16 @@ findings produce the portrait and Neo4j graph. Dossier and Graph inspectors show
 verbatim passages, source URLs, collection dates and support status. A completed
 run can legitimately stop before three waves when no useful tasks remain.
 
-To use Crusoe for focused public-evidence workers, configure the ignored `.env`:
-
-```dotenv
-ARC_RESEARCH_WORKER_PROVIDER=crusoe
-CRUSOE_API_KEY=<your inference key>
-CRUSOE_WORKER_MODEL=nvidia/NVIDIA-Nemotron-3.5-Super-VL
-```
-
-Restart the API after changing its environment. Claude retains SDK/MCP harvesting,
-claim extraction, critic review and portrait generation. Private journal routing
-is unchanged; neither worker packets nor Crusoe receive private notes.
-`ClaudeSDKClient` is never pointed at an OpenAI-compatible endpoint.
-
-Preflight checks the authenticated `/v1/models` catalog for the exact model ID,
-JSON output support, output limits and prices before paid harvesting starts.
-The default Crusoe base URL is `https://api.inference.crusoecloud.com/v1` and the
-application output bound is 4,096 tokens. Admission reserves catalog full-context
-costs, so it can reject large-context models even for small actual packets.
-There is no automatic paid retry or paid-provider fallback; unknown usage blocks
-further spending. Credits and actual billing are account-specific.
-
 You.com (`YDC_API_KEY`) supplies paid web/news discovery through
 `mcp__osint__search_web_you`. Exa is no longer registered or required. Existing
 free lookups remain available. Search snippets and matching usernames are leads,
 not independent identity verification. Tool errors remain visible in the stream.
 
-Official sources checked October 18, 2026:
-
-- [Crusoe inference documentation](https://docs.crusoecloud.com/serverless-inference/)
-- [Model capabilities catalog](https://support.crusoecloud.com/hc/en-us/articles/55002524169499-How-To-List-Model-Features-via-curl-and-the-Inference-API)
-- [Crusoe pricing](https://www.crusoe.ai/cloud/pricing)
-
-The configured Nemotron model passed one authorized live worker check. A separate
-authorized full hybrid run completed API/SSE, two Crusoe workers, critic/portrait,
-Neo4j commit and browser dossier/graph/passage/reload checks. Read-back matched
-six nodes and four edges; one of five portrait sections had insufficient evidence.
-The run used one wave, with 26 captured source results and nine failed calls.
-Recorded model usage cost $0.18536866, excluding search/scraping charges.
-Receipts and source payloads remain in ignored local storage, not this repository.
-
-Known limitations from that run: initial passage selection omitted useful
+Known limitations: initial passage selection omitted useful
 collected primary articles, limiting the final portrait; long research requests
 render verbatim as profile titles. A successful graph commit does not establish
-complete coverage or independently verify every claim. The run did not validate
-multi-wave live recursion or every source tool. The no-credit saved-profile action
+complete coverage or independently verify every claim. Multi-wave live recursion and
+every source tool are not fully validated. The no-credit saved-profile action
 requires the original local saved session/artifacts; it is hidden when unavailable.
 
 ## The Council
