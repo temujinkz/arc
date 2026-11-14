@@ -19,14 +19,15 @@ Matching handles do not establish identity, and repeated snapshots of the same s
 
 ## Screenshots
 
-Captured from the running landing site (`landing/`) using the sample data bundled in the repository.
+Captured from the landing site (`landing/`) running locally. The names and companies shown are fictional placeholders swapped in for the screenshots; they are not real people or results. The sequence shows the page changing color as you scroll.
 
-![Hero](docs/screenshots/1-arc-01-hero.png)
-![People in the record](docs/screenshots/7-arc-02-people-graph.png)
-![Every claim points back to its source](docs/screenshots/3-arc-03-claims-graph.png)
-![Node types, dark section](docs/screenshots/4-arc-04-node-types-dark.png)
-![How a name becomes a graph](docs/screenshots/5-arc-05-pipeline-dark.png)
-![A record people can check and correct](docs/screenshots/6-arc-06-principles-light.png)
+![Hero](docs/screenshots-sample/1-arc-01-hero.png)
+![People in the record (sample data)](docs/screenshots-sample/2-arc-02-people-graph.png)
+![Every claim points back to its source (sample data)](docs/screenshots-sample/3-arc-03-claims-graph.png)
+![Scrolling: light fades to dark](docs/screenshots-sample/4-arc-04-fade-to-dark.png)
+![How a name becomes a graph](docs/screenshots-sample/5-arc-05-pipeline-dark.png)
+![Scrolling: dark fades to light](docs/screenshots-sample/6-arc-06-fade-to-light.png)
+![A record people can check and correct](docs/screenshots-sample/7-arc-07-principles-light.png)
 
 ## Requirements
 
