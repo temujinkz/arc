@@ -24,9 +24,7 @@ Captured from the landing site (`landing/`) running locally. The names and compa
 ![Hero](docs/screenshots-sample/1-arc-01-hero.png)
 ![People in the record (sample data)](docs/screenshots-sample/2-arc-02-people-graph.png)
 ![Every claim points back to its source (sample data)](docs/screenshots-sample/3-arc-03-claims-graph.png)
-![Scrolling: light fades to dark](docs/screenshots-sample/4-arc-04-fade-to-dark.png)
 ![How a name becomes a graph](docs/screenshots-sample/5-arc-05-pipeline-dark.png)
-![Scrolling: dark fades to light](docs/screenshots-sample/6-arc-06-fade-to-light.png)
 ![A record people can check and correct](docs/screenshots-sample/7-arc-07-principles-light.png)
 
 ## Requirements
